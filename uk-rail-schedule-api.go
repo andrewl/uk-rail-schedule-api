@@ -364,7 +364,6 @@ func main() {
 	// A good base middleware stack
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(NewStructuredLogger(logger.Handler()))
 	r.Use(middleware.Recoverer)
 	r.Use(render.SetContentType(render.ContentTypeJSON))
 
