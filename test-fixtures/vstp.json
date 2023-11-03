@@ -1,0 +1,138 @@
+{
+   "VSTPCIFMsgV1" : {
+      "Sender" : {
+         "application" : "TSIA",
+         "component" : "TSIA",
+         "organisation" : "Network Rail",
+         "sessionID" : "JV03000",
+         "userID" : "#QRP3286"
+      },
+      "classification" : "industry",
+      "originMsgId" : "2023-10-13T21:50:30-00:00@vstp.networkrail.co.uk",
+      "owner" : "Network Rail",
+      "schedule" : {
+         "CIF_stp_indicator" : "N",
+         "CIF_train_uid" : " 03478",
+         "applicable_timetable" : "N",
+         "schedule_days_runs" : "0000100",
+         "schedule_end_date" : "2023-10-13",
+         "schedule_segment" : [
+            {
+               "CIF_power_type" : "EMU",
+               "CIF_train_category" : "EE",
+               "CIF_train_service_code" : "22306003",
+               "schedule_location" : [
+                  {
+                     "CIF_activity" : "TB",
+                     "CIF_path" : " ",
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "ROCKFRY"
+                        }
+                     },
+                     "public_arrival_time" : " ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : " ",
+                     "scheduled_departure_time" : "235600",
+                     "scheduled_pass_time" : " "
+                  },
+                  {
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "GNLN"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : "      ",
+                     "scheduled_departure_time" : "      ",
+                     "scheduled_pass_time" : "235800"
+                  },
+                  {
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "BRKNHDC"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : "      ",
+                     "scheduled_departure_time" : "      ",
+                     "scheduled_pass_time" : "235930"
+                  },
+                  {
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "HAMTSQ"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : "      ",
+                     "scheduled_departure_time" : "      ",
+                     "scheduled_pass_time" : "000100"
+                  },
+                  {
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "JAMESST"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : "001300",
+                     "scheduled_departure_time" : "001700",
+                     "scheduled_pass_time" : "      "
+                  },
+                  {
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "HAMTSQ"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : "      ",
+                     "scheduled_departure_time" : "      ",
+                     "scheduled_pass_time" : "001900"
+                  },
+                  {
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "BRKNHDN"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : "      ",
+                     "scheduled_arrival_time" : "      ",
+                     "scheduled_departure_time" : "      ",
+                     "scheduled_pass_time" : "002600"
+                  },
+                  {
+                     "CIF_activity" : "TF",
+                     "CIF_engineering_allowance" : " ",
+                     "CIF_line" : " ",
+                     "CIF_pathing_allowance" : " ",
+                     "CIF_performance_allowance" : " ",
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "WKIRBY"
+                        }
+                     },
+                     "public_arrival_time" : "      ",
+                     "public_departure_time" : " ",
+                     "scheduled_arrival_time" : "004300",
+                     "scheduled_departure_time" : " ",
+                     "scheduled_pass_time" : " "
+                  }
+               ],
+               "signalling_id" : "5B94"
+            }
+         ],
+         "schedule_start_date" : "2023-10-13",
+         "train_status" : "1",
+         "transaction_type" : "Create"
+      },
+      "timestamp" : "1697233830000"
+   }
+}
