@@ -675,5 +675,5 @@ func dbGetSchedules(identifierType string, identifier string, date string, toc s
 		return schedules, nil
 	}
 
-	return nil, errors.New("no schedule found")
+	return nil, nil
 }
