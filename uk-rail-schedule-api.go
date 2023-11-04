@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-stomp/stomp/v3"
+	slogchi "github.com/samber/slog-chi"
 	"github.com/spf13/viper"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -129,7 +130,6 @@ func refreshSchedules(filename string, db *gorm.DB) {
 	db.Create(&scheduleFeedRecord.Timetable)
 
 }
-
 
 func processStompMessage(subscription *stomp.Subscription, db *gorm.DB) error {
 	logger.Debug("Waiting for a message from STOMP subscription")
@@ -260,7 +260,6 @@ func endRefreshingDatabase() {
 		logger.Debug("Not deleting expired schedules from database")
 	}
 
-
 	logger.Info("end refreshing database")
 	refreshingDatabase = false
 }
@@ -281,7 +280,7 @@ func getStompConnectionDetails() (url string, login string, password string) {
 }
 
 func shouldDeleteExpiredSchedulesAfterRefresh() bool {
-	logger.Debug("dddddd","vlaue",getConfigValue("delete_expired_schedules_on_refresh"))
+	logger.Debug("dddddd", "vlaue", getConfigValue("delete_expired_schedules_on_refresh"))
 	return getConfigValue("delete_expired_schedules_on_refresh") == "yes"
 }
 
@@ -315,15 +314,15 @@ func main() {
 
 	//set some default configuration
 	viper.SetDefault("stomp_url", "publicdatafeeds.networkrail.co.uk:61618")
-	viper.SetDefault("database", "data/ukra.db")
+	viper.SetDefault("database", "ukra.db")
 	viper.SetDefault("schedule_feed_filename", "schedule.json")
 	viper.SetDefault("log_filename", "")
 	viper.SetDefault("listen_on", "127.0.0.1:3333")
 
 	//load in config
 	viper.SetConfigName("config")
-	viper.AddConfigPath("/etc/ukrail/")
-	viper.AddConfigPath("$HOME/.ukrail")
+	viper.AddConfigPath("/etc/ukra/")
+	viper.AddConfigPath("$HOME/.ukra")
 	viper.AddConfigPath(".")
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -331,7 +330,6 @@ func main() {
 	}
 
 	var logOutput *os.File
-	//logger = slog.New(getLogHandler())
 	if getConfigValue("log_filename") != "" {
 
 		logOutput, err = os.OpenFile(getConfigValue("log_filename"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -343,7 +341,7 @@ func main() {
 
 	} else {
 
-		logOutput = os.Stdout
+		logOutput = os.Stderr
 
 	}
 
@@ -364,6 +362,7 @@ func main() {
 	// A good base middleware stack
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(slogchi.New(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(render.SetContentType(render.ContentTypeJSON))
 
@@ -591,8 +590,8 @@ func dbGetSchedules(identifierType string, identifier string, date string, toc s
 	// If we've passed in a specific toc, then filter on it
 	if location != "any" {
 		//need to construct this as a subselect because of a bug in gorm when using joins
-		 location_filter = fmt.Sprintf(" and id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", location)
-	} 
+		location_filter = fmt.Sprintf(" and id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", location)
+	}
 
 	logger.Debug("filters", "identifier_filter", identifier_filter, "start_date", start_date, "end_date", end_date, "day_filter", day_filter, "atoc_filter", atoc_filter, "location_filter", location_filter)
 
@@ -622,7 +621,6 @@ func dbGetSchedules(identifierType string, identifier string, date string, toc s
 		db.Find(&schedules[idx].ScheduleLocation, "schedule_id = ?", schedules[idx].ID)
 		logger.Debug("schedule", "idx", idx, "schedule_id", schedules[idx].ID, "locations", len(schedules[idx].ScheduleLocation))
 	}
-
 
 	var overlays []Schedule
 

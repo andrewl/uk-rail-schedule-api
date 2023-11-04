@@ -395,7 +395,7 @@ func (schedule *Schedule) ApplyOverlays(overlays []Schedule, datetime int64) {
 
 	//N - STP schedule: similar to a permanent schedule, but planned through the Short Term Planning process and not capable of being overlaid
 	if schedule.CIFStpIndicator == "N" {
- 		return
+		return
 	}
 
 	//Sort the overlays by CIFStpIndicator. The first that matches will be applied.
@@ -409,7 +409,7 @@ func (schedule *Schedule) ApplyOverlays(overlays []Schedule, datetime int64) {
 		if !overlayApplied {
 			logger.Debug("Testing overlay...", "ciftrainui", overlay.CIFTrainUID, "startdatets", overlay.ScheduleStartDateTS, "enddatets", overlay.ScheduleEndDateTS, "date", datetime)
 			//when to apply the overlay...
-			if (overlay.CIFTrainUID == schedule.CIFTrainUID) &&  (overlay.ScheduleStartDateTS <= datetime && overlay.ScheduleEndDateTS > datetime) {
+			if (overlay.CIFTrainUID == schedule.CIFTrainUID) && (overlay.ScheduleStartDateTS <= datetime && overlay.ScheduleEndDateTS > datetime) {
 
 				logger.Debug("Applying overlay", "combinedid", overlay.CombinedID)
 

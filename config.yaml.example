@@ -1,24 +1,31 @@
 ---
 # url of the Network Rail STOMP server
-stomp_url: "publicdatafeeds.networkrail.co.uk:61618"
+#
+#stomp_url: "publicdatafeeds.networkrail.co.uk:61618"
 
 # Credentials to access the Network Rail STOMP server
 stomp_login: ""
 stomp_password: ""
 
 # Location of SQLite database - will be created if doesn't exist
-database: "data/ukra.db"
+#
+#database: "ukra.db"
 
 # Location of schedule feed json file 
-schedule_feed_filename: "schedule.json"
+#
+#schedule_feed_filename: "schedule.json"
 
 # Location of logfile
-log_filename: "/tmp/ukra.log"
+# Leave blank to log to stderr
+#
+#log_filename: "ukra.log"
 
 # Port and ip to listen to requests on 
-listen_on: "127.0.0.1:3333"
+#
+#listen_on: "127.0.0.1:3333"
 
-# If 'yes', delete schedules which expired in the past
+# If "yes", delete schedules which expired in the past
 # ie whose schedule_end_date is prior to the current day
 # Can be useful for trimming the database
-delete_expired_schedules_on_refresh: "yes"
+#
+#delete_expired_schedules_on_refresh: "no"
