@@ -15,19 +15,18 @@ The service
 
 - The latest release of uk-rail-schedule-api from the [releases page](https://github.com/andrewl/uk-rail-schedule-api/releases/latest)
 
-### Configuring the service
+### Configuring
 
-- Copy config.yaml.example to config.yaml
-- Update config.yaml with your Network Rail data feed username and password
-- All of the other options 
+- Copy config.yaml.example to config.yaml and update with your Network Rail data feed username and password
+- All of the other options have usable defaults, you can override them if necessary in your config.yaml 
 
-### Running the service
+### Running
 
 You'll need to download a copy of the Network Rail Schedule Feed and save it as schedule.json. The file is available, gzipped at the following url (you'll need to be logged in with your network rail account to access it): https://publicdatafeeds.networkrail.co.uk/ntrod/CifFileAuthenticate?type=CIF_ALL_FULL_DAILY&day=toc-full
 
-Once you've downloaded your initial schedule file, you'll just need to uncompress it with gzip.
+Once you've downloaded your initial schedule file, you'll just need to uncompress it with gzip and ensure the file is called schedule.json (or whatever you might have changed it to in your config.yaml)
 
-- Run the service
+Run the service
 
     ./uk-rail-schedule-api
 
@@ -35,7 +34,7 @@ This will load the schedules into the database from the schedule.json and listen
 
 As soon as the service is started the the service will log message to the location specified in config.yaml (by default stderr)
 
-## Using the API
+## API Reference
 
 ### Schedules endpoint
 
