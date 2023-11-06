@@ -5,7 +5,16 @@ The UK Rail Schedule API is a service that provides access to detailed UK train 
 The service
 - Loads data from a SCHEDULE feed file in json format
 - Loads Very Short Term Planning (VSTP) updates from Network Rail's STOMP messaging service
-- Responds to http requests from clients for train schedules based on headcode (aka signalling id), train uid and filtered by date, location or operating company
+- Responds to http requests from clients for information on train schedules 
+
+If you want
+- to be able find information on train schedules (both permanent and VSTP) based on headcode (aka signalling id), train uid and filtered by date, location or operating company, or
+- a database of train schedules 
+
+Then this service could be for you.
+
+
+
 
 ## Setup
 
@@ -33,6 +42,10 @@ Run the service
 This will load the schedules into the database from the schedule.json and listen for updates from the VSTP STOMP service. The loading of the schedules can take some time (up to 30 minutes), but during this time the service will still respond to http requests - albeit just on the data that has been loaded up until that time.
 
 As soon as the service is started the the service will log message to the location specified in config.yaml (by default stderr)
+
+## Container diagram
+
+![Container diagram of UK Rail Schedule API](./docs/container.png) 
 
 ## API Reference
 
