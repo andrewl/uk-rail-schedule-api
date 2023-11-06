@@ -1,0 +1,28 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!theme mono
+LAYOUT_TOP_DOWN()
+HIDE_STEREOTYPE()
+' LAYOUT_AS_SKETCH()
+' LAYOUT_WITH_LEGEND()
+
+title C4 Container diagram for UK Rail Schedule API
+
+System_Ext(network_rail, "Network Rail Data Feed") {
+    Container(stomp, "Messaging Service", "ActiveMQ Artemis", "Delivers Very Short Term Planning schedules")
+    Container(schedule, "File Store", "Amazon S3", "Daily dump of permanent schedules")
+}
+
+System_Boundary(c1, "UK Rail Schedule API") {
+    Container(api, "REST API", "Golang", "Maintains and delivers schedules")
+    Container(schedule_download, "File", "Amazon S3", "Download of daily schedules")
+    Container(database, "Database", "SQLite", "Database containing permanent and VSTP schedules")
+}
+
+Container(api_consumer, "Web Application", "Any", "Requires information about a schedule")
+
+Rel(api, stomp, "Listens for new VSTP schedules", "STOMP")
+Rel(schedule_download, schedule, "Downloads", "https")
+Rel(api, database, "Saves and loads schedules", "file i/o")
+Rel(api_consumer, api, "Requests schedule information", "http")
+@enduml

@@ -1,0 +1,74 @@
+@startjson
+{
+   "JsonScheduleV1" : {
+      "CIF_bank_holiday_running" : null,
+      "CIF_stp_indicator" : "N",
+      "CIF_train_uid" : "H09046",
+      "applicable_timetable" : "Y",
+      "atoc_code" : "ZZ",
+      "new_schedule_segment" : {
+         "traction_class" : "",
+         "uic_code" : ""
+      },
+      "schedule_days_runs" : "0000010",
+      "schedule_end_date" : "2024-06-01",
+      "schedule_segment" : {
+         "CIF_business_sector" : "??",
+         "CIF_catering_code" : null,
+         "CIF_connection_indicator" : null,
+         "CIF_course_indicator" : 1,
+         "CIF_headcode" : "",
+         "CIF_operating_characteristics" : "Y",
+         "CIF_power_type" : "D",
+         "CIF_reservations" : null,
+         "CIF_service_branding" : "",
+         "CIF_sleepers" : null,
+         "CIF_speed" : "075",
+         "CIF_timing_load" : null,
+         "CIF_train_category" : "DT",
+         "CIF_train_class" : null,
+         "CIF_train_service_code" : "52495112",
+         "schedule_location" : [
+            {
+               "arrival" : "0358",
+               "departure" : "0432",
+               "engineering_allowance" : null,
+               "line" : "SL",
+               "location_type" : "LI",
+               "pass" : null,
+               "path" : "SL",
+               "pathing_allowance" : null,
+               "performance_allowance" : null,
+               "platform" : "3",
+               "public_arrival" : null,
+               "public_departure" : null,
+               "record_identity" : "LI",
+               "tiploc_code" : "HNTNGDN",
+               "tiploc_instance" : null
+            },
+            {
+               "arrival" : "0712H",
+               "departure" : "0714H",
+               "engineering_allowance" : null,
+               "line" : null,
+               "location_type" : "LI",
+               "pass" : null,
+               "path" : null,
+               "pathing_allowance" : null,
+               "performance_allowance" : null,
+               "platform" : null,
+               "public_arrival" : null,
+               "public_departure" : null,
+               "record_identity" : "LI",
+               "tiploc_code" : "SHEETSJ",
+               "tiploc_instance" : null
+            }
+         ],
+         "signalling_id" : "3Q12"
+      },
+      "schedule_start_date" : "2024-06-01",
+      "train_status" : "2",
+      "transaction_type" : "Create"
+   }
+}
+@endjson

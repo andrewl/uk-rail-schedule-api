@@ -1,0 +1,55 @@
+@startjson
+[
+   {
+      "CIF_business_sector" : "??",
+      "CIF_course_indicator" : 1,
+      "CIF_power_type" : "D",
+      "CIF_power_type_description" : "Diesel",
+      "CIF_speed" : "060",
+      "CIF_stp_indicator" : "N",
+      "CIF_timing_load" : "600",
+      "CIF_timing_load_description" : "600 tonnes load",
+      "CIF_train_category" : "B4",
+      "CIF_train_category_description" : "Aggregates",
+      "CIF_train_service_code" : "57121020",
+      "CIF_train_uid" : "R49351",
+      "CombinedID" : "R493512023-11-06N",
+      "ID" : 122844,
+      "applicable_timetable" : "Y",
+      "atoc_code" : "ZZ",
+      "atoc_code_description" : "Non-passenger (operator name obfuscated)",
+      "destination" : "HITHER GREEN DOWN RECP.",
+      "origin" : "WOKING DOWN RECP",
+      "schedule_days_runs" : "1000000",
+      "schedule_end_date" : "2023-11-06",
+      "schedule_end_date_ts" : 1699228800,
+      "schedule_from_date_ts" : 1699315199,
+      "schedule_location" : [
+         {
+            "ID" : 2017616,
+            "ScheduleID" : 122844,
+            "departure" : "1906",
+            "location_type" : "LO",
+            "record_identity" : "LO",
+            "tiploc_code" : "WOKIDRP"
+         },
+         {
+            "ID" : 2017649,
+            "ScheduleID" : 122844,
+            "arrival" : "2133",
+            "location_type" : "LT",
+            "record_identity" : "LT",
+            "tiploc_code" : "HTHRGRS"
+         }
+      ],
+      "schedule_start_date" : "2023-11-06",
+      "signalling_id" : "4Y51",
+      "source" : "Feed",
+      "time_of_arrival_at_destination_ts" : 1699306380,
+      "time_of_departure_from_origin_ts" : 1699297560,
+      "train_status" : "2",
+      "train_status_description" : "STP Freight",
+      "transaction_type" : "Create"
+   }
+]
+@endjson
