@@ -102,7 +102,22 @@ Returns the schedules running today with the train uid of ZX12345 that passes th
 
 ## Schedule format
 
-@todo
+The physical format of a Schedule varies between the Schedule JSON and the VSTP messages. Whilst they share many common fieldnames the structure is different.
+
+### Schedule feed structure
+
+![Physical format of Schedule from Schedule Feed JSON](./docs/schedule-json.png) 
+
+
+### VSTP feed structure
+
+![Physical format of Schedule from VSTP](./docs/vstp-json.png) 
+
+### Schedule returned by API
+
+The UK Rail Schedule API delivers schedule information in a simplified form, but maintains all of the existing fields
+
+![Physical format of Schedule from API](./docs/api-json.png) 
 
 ## Additional Information
 

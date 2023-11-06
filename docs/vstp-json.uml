@@ -1,0 +1,68 @@
+@startjson
+{
+   "VSTPCIFMsgV1" : {
+      "Sender" : {
+         "application" : "TSIA",
+         "component" : "TSIA",
+         "organisation" : "Network Rail",
+         "sessionID" : "NA02900",
+         "userID" : "#QGP0941"
+      },
+      "classification" : "industry",
+      "originMsgId" : "2023-11-03T23:21:12-00:00@vstp.networkrail.co.uk",
+      "owner" : "Network Rail",
+      "schedule" : {
+         "CIF_stp_indicator" : "N",
+         "CIF_train_uid" : " 11455",
+         "applicable_timetable" : "Y",
+         "schedule_days_runs" : "1000000",
+         "schedule_end_date" : "2023-11-06",
+         "schedule_segment" : [
+            {
+               "CIF_power_type" : "EMU",
+               "CIF_train_category" : "XX",
+               "CIF_train_service_code" : "22156000",
+               "schedule_location" : [
+                  {
+                     "CIF_activity" : "TB",
+                     "CIF_path" : " ",
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "STPX"
+                        }
+                     },
+                     "public_arrival_time" : " ",
+                     "public_departure_time" : "125900",
+                     "scheduled_arrival_time" : " ",
+                     "scheduled_departure_time" : "125900",
+                     "scheduled_pass_time" : " "
+                  },
+                  {
+                     "CIF_activity" : "TF",
+                     "CIF_engineering_allowance" : " ",
+                     "CIF_line" : " ",
+                     "CIF_pathing_allowance" : " ",
+                     "CIF_performance_allowance" : " ",
+                     "location" : {
+                        "tiploc" : {
+                           "tiploc_id" : "WLNGBRO"
+                        }
+                     },
+                     "public_arrival_time" : "135800",
+                     "public_departure_time" : " ",
+                     "scheduled_arrival_time" : "135800",
+                     "scheduled_departure_time" : " ",
+                     "scheduled_pass_time" : " "
+                  }
+               ],
+               "signalling_id" : "1Y29"
+            }
+         ],
+         "schedule_start_date" : "2023-11-06",
+         "train_status" : "1",
+         "transaction_type" : "Create"
+      },
+      "timestamp" : "1699053672000"
+   }
+}
+@endjson
