@@ -131,21 +131,23 @@ func refreshSchedules(filename string, db *gorm.DB) {
 
 }
 
+// Process a STOMP message	
+// This is a blocking function - it will wait until a message is received on the subscription
+// and then process it
+// If there is an error then it will return the error
 func processStompMessage(subscription *stomp.Subscription, db *gorm.DB) error {
 	logger.Debug("Waiting for a message from STOMP subscription")
 	msg := <-subscription.C
 	var vstpMsg VSTPStompMsg
-	if msg.Body != nil {
-		logger.Debug("Got a message")
+	if msg != nil && msg.Body != nil {
+		logger.Debug("Got a message from VSTP subscription")
 		os.WriteFile("/tmp/vstp-msg.json", msg.Body, 0644)
 		if err := json.Unmarshal(msg.Body, &vstpMsg); err != nil {
 			logger.Error("Error decoding STOMP message json", "error", err, "msg.Body", msg.Body)
 			return err
 		}
 		schedule := vstpMsg.VSTPCIFMsgV1.VSTPSchedule.ToSchedule()
-		//fmt.Printf("Message from the queue: %+v\n", scheduleV1)
 		schedule.AugmentSchedule()
-		//if schedule.TransactionType == "Create" {
 		logger.Debug("Inserting schedule into db from STOMP message")
 		db.Create(&schedule)
 	} else {
@@ -155,6 +157,8 @@ func processStompMessage(subscription *stomp.Subscription, db *gorm.DB) error {
 	return nil
 }
 
+
+// Load VSTP data from the VSTP feed
 func loadVSTP(db *gorm.DB) {
 
 	url, username, password := getStompConnectionDetails()
@@ -238,6 +242,9 @@ var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, StatusText: "Resource not fo
 var ErrUnprocessable = &ErrResponse{HTTPStatusCode: 422, StatusText: "Unprocessable entity."}
 var db *gorm.DB
 var logger *slog.Logger
+
+// Refreshing the database is a long running process - this variable and the following functions are
+// called when it starts and when it ends
 var refreshingDatabase = false
 
 func isRefreshingDatabase() bool {
@@ -279,8 +286,8 @@ func getStompConnectionDetails() (url string, login string, password string) {
 	return url, login, password
 }
 
+// Should we delete expired schedules from the database after a refresh?
 func shouldDeleteExpiredSchedulesAfterRefresh() bool {
-	logger.Debug("dddddd", "vlaue", getConfigValue("delete_expired_schedules_on_refresh"))
 	return getConfigValue("delete_expired_schedules_on_refresh") == "yes"
 }
 
@@ -289,6 +296,7 @@ func getConfigValue(key string) (value string) {
 	return value
 }
 
+// Open the database and create it if it doesn't exist
 func openDB(databaseFilename string) bool {
 	err := errors.New("")
 	database_is_new := false
@@ -318,6 +326,7 @@ func main() {
 	viper.SetDefault("schedule_feed_filename", "schedule.json")
 	viper.SetDefault("log_filename", "")
 	viper.SetDefault("listen_on", "127.0.0.1:3333")
+	viper.SetDefault("delete_expired_schedules_on_refresh", "no")
 
 	//load in config
 	viper.SetConfigName("config")
