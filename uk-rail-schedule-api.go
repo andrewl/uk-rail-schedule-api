@@ -22,6 +22,7 @@ import (
 )
 
 type APIStatus struct {
+	Version	   string
 	ScheduleFileCount int64
 	VSTPCount         int64
 }
@@ -240,7 +241,14 @@ func (e *ErrResponse) Render(w http.ResponseWriter, r *http.Request) error {
 
 var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, StatusText: "Resource not found."}
 var ErrUnprocessable = &ErrResponse{HTTPStatusCode: 422, StatusText: "Unprocessable entity."}
+
+// Global version variable - set at build time
+var version string
+
+// Global database variable
 var db *gorm.DB
+
+// Global logger variable
 var logger *slog.Logger
 
 // Refreshing the database is a long running process - this variable and the following functions are
@@ -522,6 +530,7 @@ func combineDateAndTime(date int64, wtt_time string) (timestamp int64, err error
 func dbGetStatus() (APIStatus, error) {
 
 	var status APIStatus
+	status.Version = version
 
 	if db == nil {
 		logger.Error("Cannot get schedules - db does not exist")
