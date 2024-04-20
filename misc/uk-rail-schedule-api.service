@@ -1,0 +1,13 @@
+[Unit]
+Description=uk-rail-schedule-api systemd service.
+
+[Service]
+Type=simple
+WorkingDirectory=/usr/local/bin/uk-rail-schedule-api
+ExecStart=/usr/local/bin/uk-rail-schedule-api/uk-rail-schedule-api
+RemainAfterExit=no
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
