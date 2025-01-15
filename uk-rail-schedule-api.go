@@ -1,5 +1,17 @@
 package main
 
+/*
+TODO
+X 1. Add a way to get timetable for a specific location - /schedule/tiploc/TIPLOC does this
+2. openapi spec - https://medium.com/@bbakla/open-api-with-go-d75eb3afac19
+3. write the sql query better
+4. add htmx to output html?
+5. use open telemetry or sentry? for metrics,logging etc
+6. write out vstp messages to a file and add to refresh job
+7. use templates for htmx
+8. Add 
+*/
+
 import (
 	"bufio"
 	"context"
@@ -27,7 +39,16 @@ type APIStatus struct {
 	VSTPCount         int64
 }
 
+type ScheduleAPIResponse struct {
+	IdentifierType string `json:"identifierType"`
+	Identifier     string `json:"identifier"`
+	Date           string `json:"date"`
+	Schedules []Schedule `json:"schedules"`
+}
+
 // Loads the schedule data from file into the database db
+// Also loads in any vstp files that are newer than the timetable time
+// This allows us to recover from a database deletion
 func refreshSchedules(filename string, db *gorm.DB) {
 
 	if isRefreshingDatabase() {
@@ -136,31 +157,49 @@ func refreshSchedules(filename string, db *gorm.DB) {
 // This is a blocking function - it will wait until a message is received on the subscription
 // and then process it
 // If there is an error then it will return the error
-func processStompMessage(subscription *stomp.Subscription, db *gorm.DB) error {
+func processVSTPMessage(subscription *stomp.Subscription, db *gorm.DB) error {
 	logger.Debug("Waiting for a message from STOMP subscription")
 	msg := <-subscription.C
-	var vstpMsg VSTPStompMsg
 	if msg != nil && msg.Body != nil {
 		logger.Debug("Got a message from VSTP subscription")
-		os.WriteFile("/tmp/vstp-msg.json", msg.Body, 0644)
-		if err := json.Unmarshal(msg.Body, &vstpMsg); err != nil {
-			logger.Error("Error decoding STOMP message json", "error", err, "msg.Body", msg.Body)
+		// get a filename based on the current timestamp
+		filename := getConfigValue("data_dir") + "vstp-" + strconv.FormatInt(time.Now().Unix(), 10) + ".json" 
+		os.WriteFile(filename, msg.Body, 0644)
+		err := insertVSTP(filename)
+		if err != nil {
+			logger.Error("Failed to insert vstp message")
 			return err
 		}
-		schedule := vstpMsg.VSTPCIFMsgV1.VSTPSchedule.ToSchedule()
-		schedule.AugmentSchedule()
-		logger.Debug("Inserting schedule into db from STOMP message")
-		db.Create(&schedule)
 	} else {
 		logger.Error("STOMP message body is empty - will stop consuming more messages", "msg", msg)
-		return msg.Err
+		return errors.New("STOMP message body is empty")
 	}
 	return nil
 }
 
+func insertVSTP(filename string) (err error) {
+	var vstpMsg VSTPStompMsg
+	vstp, err := os.ReadFile(filename)
+	if err != nil {
+		logger.Error("Failed to read vstp message from file", "error", err, "filename", filename)
+		return err
+	}
+
+	if err = json.Unmarshal(vstp, &vstpMsg); err != nil {
+		logger.Error("Error decoding STOMP message json", "error", err, "vstp", vstp)
+		return err
+	}
+
+	schedule := vstpMsg.VSTPCIFMsgV1.VSTPSchedule.ToSchedule()
+	schedule.AugmentSchedule()
+	logger.Debug("Inserting schedule into db from STOMP message")
+	db.Create(&schedule)
+	return err
+}
+
 
 // Load VSTP data from the VSTP feed
-func loadVSTP(db *gorm.DB) {
+func listenForVSTP(db *gorm.DB) {
 
 	url, username, password := getStompConnectionDetails()
 	if url == "" {
@@ -195,11 +234,8 @@ func loadVSTP(db *gorm.DB) {
 			}
 
 			if err == nil {
-
 				defer stompConn.Disconnect()
-
 				sub, err = stompConn.Subscribe("/topic/VSTP_ALL", stomp.AckClient)
-
 				if err != nil {
 					logger.Error("There was an error connecting to STOMP server - disconnecting", "err", err)
 					sub.Unsubscribe()
@@ -211,9 +247,7 @@ func loadVSTP(db *gorm.DB) {
 		}
 
 		if sub != nil {
-
-			err := processStompMessage(sub, db)
-
+			err := processVSTPMessage(sub, db)
 			if err != nil {
 				logger.Error("There was an error processing message. Disconnecting from STOMP server", "err", err)
 				if sub.Active() {
@@ -284,7 +318,7 @@ func getScheduleFeedFilename() string {
 }
 
 func getDatabaseFilename() string {
-	return getConfigValue("database")
+	return getConfigValue("data_dir") + "/ukra.db"
 }
 
 func getStompConnectionDetails() (url string, login string, password string) {
@@ -330,7 +364,7 @@ func main() {
 
 	//set some default configuration
 	viper.SetDefault("stomp_url", "publicdatafeeds.networkrail.co.uk:61618")
-	viper.SetDefault("database", "ukra.db")
+	viper.SetDefault("data_dir", "./data/")
 	viper.SetDefault("schedule_feed_filename", "schedule.json")
 	viper.SetDefault("log_filename", "")
 	viper.SetDefault("listen_on", "127.0.0.1:3333")
@@ -371,7 +405,7 @@ func main() {
 
 	openDB(getDatabaseFilename())
 	go refreshSchedules(getScheduleFeedFilename(), db)
-	go loadVSTP(db)
+	go listenForVSTP(db)
 
 	// OK we've got this far and have a valid database - let's serve some requests
 	r := chi.NewRouter()
@@ -387,6 +421,10 @@ func main() {
 	// through ctx.Done() that the request has timed out and further
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
+
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", getIndex)
+	})
 
 	// REST routes for "schedule" resource
 	r.Route("/schedules/{identifierType}/{identifier}", func(r chi.Router) {
@@ -419,7 +457,7 @@ func statusCtx(next http.Handler) http.Handler {
 		if err != nil {
 			//http.Error(w, http.StatusText(500), 500)
 			http.Error(w, err.Error(), 500)
-			return
+		return
 		}
 		ctx := context.WithValue(r.Context(), "status", status)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -430,6 +468,7 @@ func schedulesCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		identifierType := chi.URLParam(r, "identifierType")
 		identifier := chi.URLParam(r, "identifier")
+
 		var date string
 		if r.URL.Query().Has("date") {
 			date = r.URL.Query().Get("date")
@@ -463,7 +502,8 @@ func schedulesCtx(next http.Handler) http.Handler {
 			http.Error(w, http.StatusText(404), 404)
 			return
 		}
-		ctx := context.WithValue(r.Context(), "schedules", schedules)
+		scheduleAPIResponse := ScheduleAPIResponse{IdentifierType: identifierType, Identifier: identifier, Date: date, Schedules: schedules}	
+		ctx := context.WithValue(r.Context(), "schedules", scheduleAPIResponse)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -491,7 +531,7 @@ func getStatus(w http.ResponseWriter, r *http.Request) {
 
 func getSchedules(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	schedules, ok := ctx.Value("schedules").([]Schedule)
+	schedules, ok := ctx.Value("schedules").(ScheduleAPIResponse)
 	if !ok {
 		render.Render(w, r, ErrUnprocessable)
 		return
@@ -499,6 +539,20 @@ func getSchedules(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, schedules)
 }
 
+func getIndex(w http.ResponseWriter, r *http.Request) {
+
+	//load the html from the relevant file
+	html, err := os.ReadFile("index.html")
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	w.Write(html)
+}
+
+
+// Combine a date and a time into a Unix timestamp
+// If the date is 0 then use the current date
 func combineDateAndTime(date int64, wtt_time string) (timestamp int64, err error) {
 
 	currentTime := time.Now()
@@ -578,6 +632,10 @@ func dbGetSchedules(identifierType string, identifier string, date string, toc s
 		identifier_filter = fmt.Sprintf("cif_train_uid = \"%s\"", identifier)
 	}
 
+	if identifierType == "tiploc" {
+		identifier_filter = fmt.Sprintf("id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", identifier)
+	}
+
 	// If we don't have a filter then bail out
 	if identifier_filter == "" {
 		logger.Error("Failed to understand how to identifier")
@@ -614,21 +672,21 @@ func dbGetSchedules(identifierType string, identifier string, date string, toc s
 	logger.Debug("filters", "identifier_filter", identifier_filter, "start_date", start_date, "end_date", end_date, "day_filter", day_filter, "atoc_filter", atoc_filter, "location_filter", location_filter)
 
 	/* This query applies the following rules as described here in order to ensure that any cancellations or short-term
-	planning schedule is selected ahead of any permanent schedule.
+planning schedule is selected ahead of any permanent schedule.
 
-	Schedule validities are between a start date and an end date, and on particular days of the week. They each have a Short Term Planning (STP) indicator field as follows:
+Schedule validities are between a start date and an end date, and on particular days of the week. They each have a Short Term Planning (STP) indicator field as follows:
 
-	C - Planned cancellation: the schedule does not apply on this date, and the train will not run. Typically seen on public holidays when an alternate schedule applies, or on Christmas Day.
-	N - STP schedule: similar to a permanent schedule, but planned through the Short Term Planning process and not capable of being overlaid
-	O - Overlay schedule: an alteration to a permanent schedule
-	P - Permanent schedule: a schedule planned through the Long Term Planning proces
+C - Planned cancellation: the schedule does not apply on this date, and the train will not run. Typically seen on public holidays when an alternate schedule applies, or on Christmas Day.
+N - STP schedule: similar to a permanent schedule, but planned through the Short Term Planning process and not capable of being overlaid
+O - Overlay schedule: an alteration to a permanent schedule
+P - Permanent schedule: a schedule planned through the Long Term Planning proces
 
-	Permanent ('P') schedules can be overlaid by another schedule with the same UID - either a Variation ('O') or Cancellation Variation ('C'). For any particular day, of all the schedules for that UID valid on that day, the 'C' or 'O' schedule is the one which applies. Conveniently, it also means that the lowest alphabetical STP indicator wins - 'C' and 'O' are both lower in the alphabet than 'P'.
+Permanent ('P') schedules can be overlaid by another schedule with the same UID - either a Variation ('O') or Cancellation Variation ('C'). For any particular day, of all the schedules for that UID valid on that day, the 'C' or 'O' schedule is the one which applies. Conveniently, it also means that the lowest alphabetical STP indicator wins - 'C' and 'O' are both lower in the alphabet than 'P'.
 
-	This process allows a different schedule to be valid on particular days, or the service to not be valid on that day. For example, a schedule may be valid Monday - Friday each day of the year, but have a Cancellation Variation on Christmas Day and Boxing Day only.
+This process allows a different schedule to be valid on particular days, or the service to not be valid on that day. For example, a schedule may be valid Monday - Friday each day of the year, but have a Cancellation Variation on Christmas Day and Boxing Day only.
 	*/
 
-	sqlError := db.Raw("SELECT * FROM schedules WHERE (cif_stp_indicator = 'P' or cif_stp_indicator = 'N') AND "+identifier_filter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+day_filter+atoc_filter+location_filter, start_date, end_date).Scan(&schedules).Error
+	sqlError := db.Debug().Raw("SELECT * FROM schedules WHERE (cif_stp_indicator = 'P' or cif_stp_indicator = 'N') AND "+identifier_filter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+day_filter+atoc_filter+location_filter, start_date, end_date).Scan(&schedules).Error
 
 	if sqlError != nil {
 		return nil, errors.New("There was an error running the sql to get the schedules: " + sqlError.Error())
@@ -636,7 +694,7 @@ func dbGetSchedules(identifierType string, identifier string, date string, toc s
 
 	/* Because we used raw sql in the above query we didn't automatically load the schedule locations. This does that */
 	for idx := range schedules {
-		db.Find(&schedules[idx].ScheduleLocation, "schedule_id = ?", schedules[idx].ID)
+		db.Debug().Model(&ScheduleLocation{}).Preload("Tiploc").Find(&schedules[idx].ScheduleLocation,  "schedule_id = ?", schedules[idx].ID)
 		logger.Debug("schedule", "idx", idx, "schedule_id", schedules[idx].ID, "locations", len(schedules[idx].ScheduleLocation))
 	}
 

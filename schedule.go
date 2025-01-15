@@ -83,6 +83,7 @@ type ScheduleLocation struct {
 	PublicArrival        string `json:"public_arrival,omitempty"`
 	Pass                 string `json:"pass,omitempty"`
 	Path                 string `json:"path,omitempty"`
+	Tiploc	     Tiploc `gorm:"foreignKey:TiplocCode;references:TiplocCode"`
 }
 
 // Define a struct to represent the code-description mapping
@@ -542,7 +543,7 @@ func (schedule *Schedule) ApplyOverlays(overlays []Schedule, datetime int64) {
 
 }
 
-// Augments the schedule with info
+// Augments the schedule with additional useful info
 func (schedule *Schedule) AugmentSchedule() error {
 
 	schedule.CIFTrainCategoryDescription = GetTrainCategoryDescription(schedule.CIFTrainCategory)
