@@ -163,7 +163,7 @@ func processVSTPMessage(subscription *stomp.Subscription, db *gorm.DB) error {
 	if msg != nil && msg.Body != nil {
 		logger.Debug("Got a message from VSTP subscription")
 		// get a filename based on the current timestamp
-		filename := getConfigValue("data_dir") + "vstp-" + strconv.FormatInt(time.Now().Unix(), 10) + ".json" 
+		filename := getConfigValue("data_dir") + "/vstp-" + strconv.FormatInt(time.Now().Unix(), 10) + ".json" 
 		os.WriteFile(filename, msg.Body, 0644)
 		err := insertVSTP(filename)
 		if err != nil {
@@ -542,7 +542,7 @@ func getSchedules(w http.ResponseWriter, r *http.Request) {
 func getIndex(w http.ResponseWriter, r *http.Request) {
 
 	//load the html from the relevant file
-	html, err := os.ReadFile("index.html")
+	html, err := os.ReadFile("web/index.html")
 	if err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return

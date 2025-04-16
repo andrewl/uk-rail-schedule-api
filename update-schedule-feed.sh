@@ -6,6 +6,10 @@
 # It requires the following environment variables to be set:
 # - UKRA_USERNAME
 # - UKRA_PASSWORD
+#
+
+# Change to the directory of the script
+cd "$(dirname "$0")"
 
 # if username or password are empty, exit
 if [ -z "$UKRA_USERNAME" ] || [ -z "$UKRA_PASSWORD" ]; then
@@ -13,7 +17,7 @@ if [ -z "$UKRA_USERNAME" ] || [ -z "$UKRA_PASSWORD" ]; then
   exit 1
 fi
 
-curl -L -u "$UKRA_USERNAME:$UKRA_PASSWORD" -o schedule.json.gz 'https://publicdatafeeds.networkrail.co.uk/ntrod/CifFileAuthenticate?type=CIF_ALL_FULL_DAILY&day=toc-full'
+curl -L -u "$UKRA_USERNAME:$UKRA_PASSWORD" -o tmp/schedule.json.gz 'https://publicdatafeeds.networkrail.co.uk/ntrod/CifFileAuthenticate?type=CIF_ALL_FULL_DAILY&day=toc-full'
 
 # if curl failed to download the file then exit
 if [ $? -ne 0 ]; then
@@ -21,7 +25,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-gunzip -f schedule.json.gz
+gunzip -f tmp/schedule.json.gz
 
 # if gunzip failed to unzip the file then exit
 if [ $? -ne 0 ]; then
