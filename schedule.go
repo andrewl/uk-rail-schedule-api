@@ -83,7 +83,7 @@ type ScheduleLocation struct {
 	PublicArrival        string `json:"public_arrival,omitempty"`
 	Pass                 string `json:"pass,omitempty"`
 	Path                 string `json:"path,omitempty"`
-	Tiploc	     Tiploc `gorm:"foreignKey:TiplocCode;references:TiplocCode"`
+	Tiploc               Tiploc `gorm:"foreignKey:TiplocCode;references:TiplocCode"`
 }
 
 // Define a struct to represent the code-description mapping
