@@ -21,5 +21,6 @@
 go.work
 
 .env
-data/ukra.db
+data/*
 uk-rail-schedule-api
+bin

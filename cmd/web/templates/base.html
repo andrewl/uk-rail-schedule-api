@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UK Rail Schedule</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>UK Rail Schedule</h1>
+  </header>
+  <main>
+    {{block "content" .}}{{end}}
+  </main>
+  <footer>
+    <div id="status-widget"
+         hx-get="/status/partial"
+         hx-trigger="load, every 30s"
+         hx-swap="innerHTML">
+      Loading status&hellip;
+    </div>
+  </footer>
+</body>
+</html>

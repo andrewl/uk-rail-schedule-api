@@ -1,0 +1,52 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<section class="search">
+  <h2>Search Schedules</h2>
+  <form hx-post="/search"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner">
+
+    <div class="form-row">
+      <label for="identifier">Train identifier</label>
+      <input id="identifier" name="identifier" type="text"
+             placeholder="e.g. 1A23 or W12345" required>
+    </div>
+
+    <div class="form-row">
+      <label for="identifier_type">Identifier type</label>
+      <select id="identifier_type" name="identifier_type">
+        <option value="headcode">Headcode / Signalling ID</option>
+        <option value="ciftrainuid">CIF Train UID</option>
+        <option value="tiploc">TIPLOC (location)</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="date">Date</label>
+      <input id="date" name="date" type="date"
+             value="{{now}}">
+    </div>
+
+    <div class="form-row">
+      <label for="toc">Operator (TOC)</label>
+      <input id="toc" name="toc" type="text"
+             placeholder="e.g. GW (leave blank for any)">
+    </div>
+
+    <div class="form-row">
+      <label for="location">Location (TIPLOC)</label>
+      <input id="location" name="location" type="text"
+             placeholder="e.g. DRBY (leave blank for any)">
+    </div>
+
+    <button type="submit">Search</button>
+    <span id="spinner" class="htmx-indicator">Searching&hellip;</span>
+  </form>
+</section>
+
+<section id="results">
+  <!-- htmx schedule results rendered here -->
+</section>
+{{end}}

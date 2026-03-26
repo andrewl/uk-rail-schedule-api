@@ -1,0 +1,54 @@
+{{if .Error}}
+  <p class="error">{{.Error}}</p>
+{{else if not .Schedules}}
+  <p class="no-results">No schedules found for <strong>{{.Identifier}}</strong> on {{.Date}}.</p>
+{{else}}
+  <h3>{{len .Schedules}} schedule(s) for {{.Identifier}} on {{.Date}}</h3>
+  {{range .Schedules}}
+  <article class="schedule-card">
+    <header>
+      <span class="signalling-id">{{.SignallingID}}</span>
+      <span class="operator">{{.AtocCodeDescription}}</span>
+      <span class="source badge-{{.Source}}">{{.Source}}</span>
+    </header>
+    <dl>
+      <dt>UID</dt><dd>{{.CIFTrainUID}}</dd>
+      <dt>From</dt><dd>{{.Origin}}</dd>
+      <dt>To</dt><dd>{{.Destination}}</dd>
+      <dt>Power type</dt><dd>{{.CIFPowerTypeDescription}}</dd>
+      <dt>Train category</dt><dd>{{.CIFTrainCategoryDescription}}</dd>
+      <dt>Days runs</dt><dd>{{.ScheduleDaysRuns}}</dd>
+      <dt>Valid</dt><dd>{{.ScheduleStartDate}} – {{.ScheduleEndDate}}</dd>
+    </dl>
+    {{if .ScheduleLocation}}
+    <details>
+      <summary>{{len .ScheduleLocation}} calling points</summary>
+      <table class="calling-points">
+        <thead>
+          <tr>
+            <th>TIPLOC</th>
+            <th>Arr</th>
+            <th>Dep</th>
+            <th>Public Arr</th>
+            <th>Public Dep</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .ScheduleLocation}}
+          <tr>
+            <td>{{.TiplocCode}}</td>
+            <td>{{.Arrival}}</td>
+            <td>{{.Departure}}</td>
+            <td>{{.PublicArrival}}</td>
+            <td>{{.PublicDeparture}}</td>
+            <td>{{.RecordIdentity}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </details>
+    {{end}}
+  </article>
+  {{end}}
+{{end}}

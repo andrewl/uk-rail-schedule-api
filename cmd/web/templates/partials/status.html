@@ -1,0 +1,10 @@
+<div class="status-bar">
+  <span>Feed schedules: <strong>{{.ScheduleFileCount}}</strong></span>
+  <span>VSTP schedules: <strong>{{.VSTPCount}}</strong></span>
+  <span>VSTP last 30m: <strong>{{.VSTPCountLastHalfHour}}</strong></span>
+  <span>VSTP last 1h: <strong>{{.VSTPCountLastHour}}</strong></span>
+  <span>VSTP last 6h: <strong>{{.VSTPCountLastSixHours}}</strong></span>
+  <span>VSTP last 24h: <strong>{{.VSTPCountLastTwentyFourHours}}</strong></span>
+  {{if .LatestVSTP}}<span>Latest VSTP: <strong>{{.LatestVSTP}}</strong></span>{{end}}
+  <span class="version">v{{.Version}}</span>
+</div>

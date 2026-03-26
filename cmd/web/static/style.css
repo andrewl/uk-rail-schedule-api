@@ -1,0 +1,78 @@
+/* UK Rail Schedule - minimal stylesheet */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #222;
+}
+
+header h1 { margin: 0 0 1rem; }
+
+.search { margin-bottom: 2rem; }
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+}
+.form-row label { font-weight: 600; margin-bottom: 0.25rem; }
+.form-row input, .form-row select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  max-width: 400px;
+}
+
+button[type=submit] {
+  padding: 0.5rem 1.5rem;
+  background: #005ea5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button[type=submit]:hover { background: #004080; }
+
+.htmx-indicator { display: none; margin-left: 1rem; color: #666; }
+.htmx-request .htmx-indicator { display: inline; }
+
+.error { color: #c00; }
+.no-results { color: #555; font-style: italic; }
+
+.schedule-card {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.schedule-card header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+.signalling-id { font-weight: 700; font-size: 1.3rem; }
+
+.badge-Feed    { background: #d4edda; color: #155724; padding: 0.2em 0.5em; border-radius: 3px; }
+.badge-VSTP    { background: #fff3cd; color: #856404; padding: 0.2em 0.5em; border-radius: 3px; }
+.badge-Feed\,VSTP { background: #cce5ff; color: #004085; padding: 0.2em 0.5em; border-radius: 3px; }
+
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin: 0.5rem 0; }
+dt { font-weight: 600; }
+
+.calling-points { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
+.calling-points th, .calling-points td {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+.calling-points th { background: #f5f5f5; }
+
+footer { margin-top: 2rem; border-top: 1px solid #ddd; padding-top: 0.5rem; }
+.status-bar { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: #555; }
+.version { margin-left: auto; }

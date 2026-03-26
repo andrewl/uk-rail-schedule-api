@@ -1,0 +1,221 @@
+package store
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+	"strconv"
+	"time"
+	"uk-rail-schedule-api/internal/schedule"
+
+	"gorm.io/gorm"
+)
+
+// APIStatus holds summary counts returned by the /status endpoint.
+type APIStatus struct {
+	Version                      string
+	ScheduleFileCount            int64
+	VSTPCount                    int64
+	EarliestVSTP                 string
+	LatestVSTP                   string
+	VSTPCountLastHalfHour        int64
+	VSTPCountLastHour            int64
+	VSTPCountLastSixHours        int64
+	VSTPCountLastTwentyFourHours int64
+}
+
+// Store wraps a GORM database handle and provides schedule query methods.
+type Store struct {
+	DB      *gorm.DB
+	Version string
+}
+
+func New(db *gorm.DB, version string) *Store {
+	return &Store{DB: db, Version: version}
+}
+
+func (s *Store) GetStatus() (APIStatus, error) {
+	var status APIStatus
+	status.Version = s.Version
+
+	if s.DB == nil {
+		return status, errors.New("could not connect to database")
+	}
+
+	type sqlErr struct {
+		dest *interface{}
+		sql  string
+	}
+
+	queries := []struct {
+		sql  string
+		dest interface{}
+	}{
+		{"select count(*) from schedules where source = 'Feed'", &status.ScheduleFileCount},
+		{"select count(*) from schedules where source = 'VSTP'", &status.VSTPCount},
+		{"select coalesce(min(published_at), '') from schedules where source = 'VSTP'", &status.EarliestVSTP},
+		{"select coalesce(max(published_at), '') from schedules where source = 'VSTP'", &status.LatestVSTP},
+		{"select count(*) from schedules where source = 'VSTP' and published_at > datetime('now', '-30 minutes')", &status.VSTPCountLastHalfHour},
+		{"select count(*) from schedules where source = 'VSTP' and published_at > datetime('now', '-60 minutes')", &status.VSTPCountLastHour},
+		{"select count(*) from schedules where source = 'VSTP' and published_at > datetime('now', '-360 minutes')", &status.VSTPCountLastSixHours},
+		{"select count(*) from schedules where source = 'VSTP' and published_at > datetime('now', '-1440 minutes')", &status.VSTPCountLastTwentyFourHours},
+	}
+
+	for _, q := range queries {
+		if err := s.DB.Raw(q.sql).Scan(q.dest).Error; err != nil {
+			return status, fmt.Errorf("error running sql: %w", err)
+		}
+	}
+
+	return status, nil
+}
+
+func (s *Store) GetSchedules(identifierType, identifier, date, toc, location string) ([]schedule.Schedule, error) {
+	var schedules []schedule.Schedule
+	var tiploc schedule.Tiploc
+
+	if s.DB == nil {
+		return schedules, errors.New("db is nil")
+	}
+
+	var identifierFilter string
+
+	switch identifierType {
+	case "headcode", "signallingid":
+		identifierFilter = fmt.Sprintf("signalling_id = \"%s\"", identifier)
+	case "ciftrainuid", "trainuid":
+		identifierFilter = fmt.Sprintf("cif_train_uid = \"%s\"", identifier)
+	case "tiploc":
+		identifierFilter = fmt.Sprintf("id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", identifier)
+	default:
+		slog.Error("Failed to understand identifier type", "identifierType", identifierType)
+		return schedules, errors.New("failed to understand identifier type - need headcode, signallingid, ciftrainuid, trainuid, or tiploc")
+	}
+
+	ts, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		slog.Error("Failed to parse date", "date", date)
+		return schedules, fmt.Errorf("failed to parse date %s", date)
+	}
+
+	startDate := ts.Unix()
+	endDate := startDate + 86399
+	dow := int(ts.Weekday())
+	if dow == 0 {
+		dow = 7
+	}
+	dayFilter := fmt.Sprintf(" and substr(schedule_days_runs, %d, 1) = \"1\" ", dow)
+
+	var atocFilter string
+	if toc != "any" {
+		atocFilter = fmt.Sprintf(" and atoc_code = \"%s\" ", toc)
+	}
+
+	var locationFilter string
+	if location != "any" {
+		locationFilter = fmt.Sprintf(" and id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", location)
+	}
+
+	slog.Debug("filters",
+		"identifier_filter", identifierFilter,
+		"start_date", startDate, "end_date", endDate,
+		"day_filter", dayFilter,
+		"atoc_filter", atocFilter,
+		"location_filter", locationFilter,
+	)
+
+	/* Query applies STP indicator rules:
+	   C - Planned cancellation (train won't run)
+	   N - STP schedule (cannot be overlaid)
+	   O - Overlay schedule (alteration to permanent)
+	   P - Permanent schedule
+	   For any date, 'C' or 'O' beats 'P' (lowest alphabetical STP wins). */
+	sqlErr := s.DB.Debug().Raw(
+		"SELECT * FROM schedules WHERE (cif_stp_indicator = 'P' or cif_stp_indicator = 'N') AND "+
+			identifierFilter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+
+			dayFilter+atocFilter+locationFilter,
+		startDate, endDate,
+	).Scan(&schedules).Error
+
+	if sqlErr != nil {
+		return nil, fmt.Errorf("error querying schedules: %w", sqlErr)
+	}
+
+	for idx := range schedules {
+		s.DB.Debug().Model(&schedule.ScheduleLocation{}).Preload("Tiploc").Find(&schedules[idx].ScheduleLocation, "schedule_id = ?", schedules[idx].ID)
+		slog.Debug("schedule", "idx", idx, "schedule_id", schedules[idx].ID, "locations", len(schedules[idx].ScheduleLocation))
+	}
+
+	var overlays []schedule.Schedule
+	sqlErr = s.DB.Raw(
+		"SELECT * FROM schedules WHERE source=\"VSTP\" AND (cif_stp_indicator = 'O' or cif_stp_indicator = 'C') AND "+
+			identifierFilter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+
+			dayFilter+atocFilter+locationFilter,
+		startDate, endDate,
+	).Scan(&overlays).Error
+
+	if sqlErr != nil {
+		return nil, fmt.Errorf("error querying overlays: %w", sqlErr)
+	}
+
+	for idx := range overlays {
+		s.DB.Find(&overlays[idx].ScheduleLocation, "schedule_id = ?", overlays[idx].ID)
+	}
+
+	for idx := range schedules {
+		schedules[idx].ApplyOverlays(overlays, startDate)
+	}
+
+	// Enrich schedules with origin/destination station names and departure/arrival timestamps
+	for idx, sch := range schedules {
+		for _, l := range sch.ScheduleLocation {
+			// LO - Originating location; TB - Train Begins (VSTP)
+			if l.RecordIdentity == "LO" || l.RecordIdentity == "TB" {
+				s.DB.Where("tiploc_code = ?", l.TiplocCode).First(&tiploc)
+				schedules[idx].Origin = tiploc.TpsDescription
+				schedules[idx].TimeOfDepartureFromOriginTS, _ = combineDateAndTime(ts.Unix(), l.Departure)
+			}
+			// LT - Termination location; TF - Train Finishes (VSTP)
+			if l.RecordIdentity == "LT" || l.RecordIdentity == "TF" {
+				s.DB.Where("tiploc_code = ?", l.TiplocCode).First(&tiploc)
+				schedules[idx].Destination = tiploc.TpsDescription
+				schedules[idx].TimeOfArrivalAtDestinationTS, _ = combineDateAndTime(ts.Unix(), l.Arrival)
+			}
+		}
+
+		// If arrival is earlier than departure it's probably next-day; add 24 hours
+		if schedules[idx].TimeOfArrivalAtDestinationTS < schedules[idx].TimeOfDepartureFromOriginTS {
+			schedules[idx].TimeOfArrivalAtDestinationTS += 86400
+		}
+	}
+
+	if len(schedules) > 0 {
+		return schedules, nil
+	}
+	return nil, nil
+}
+
+// combineDateAndTime combines a Unix date timestamp with a WTT time string "HHMM" or "HHMMSS".
+func combineDateAndTime(date int64, wttTime string) (int64, error) {
+	if len(wttTime) < 4 {
+		return 0, fmt.Errorf("wtt time too short: %q", wttTime)
+	}
+
+	currentTime := time.Now()
+	if date != 0 {
+		currentTime = time.Unix(date, 0)
+	}
+
+	hours, err := strconv.Atoi(wttTime[:2])
+	if err != nil {
+		return 0, fmt.Errorf("error parsing hours: %w", err)
+	}
+
+	minutes, err := strconv.Atoi(wttTime[2:4])
+	if err != nil {
+		return 0, fmt.Errorf("error parsing minutes: %w", err)
+	}
+
+	newTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), hours, minutes, 0, 0, currentTime.Location())
+	return newTime.Unix(), nil
+}
