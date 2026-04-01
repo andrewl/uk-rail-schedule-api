@@ -4,7 +4,6 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"time"
 )
 
 // WebHandler renders htmx-compatible HTML responses using the provided template set.
@@ -39,19 +38,42 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 		identifierType = "headcode"
 	}
 	date := r.FormValue("date")
-	if date == "" {
-		date = time.Now().Format("2006-01-02")
-	}
 	toc := r.FormValue("toc")
+	location := r.FormValue("location")
+
+	renderError := func(msg string) {
+		data := map[string]interface{}{
+			"IdentifierType": identifierType,
+			"Identifier":     identifier,
+			"Date":           date,
+			"Schedules":      nil,
+			"Error":          msg,
+		}
+		if err := h.Templates.ExecuteTemplate(w, "partials/schedules.html", data); err != nil {
+			slog.Error("Failed to render schedules partial", "error", err)
+			http.Error(w, "template error", 500)
+		}
+	}
+
+	if date == "" {
+		renderError("Please enter a date.")
+		return
+	}
+	if identifier == "" && toc == "" && location == "" {
+		renderError("Please enter at least one of: train identifier, operator, or location.")
+		return
+	}
+
 	if toc == "" {
 		toc = "any"
 	}
-	location := r.FormValue("location")
 	if location == "" {
 		location = "any"
 	}
 
-	schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location)
+	hidePassedTrains := r.FormValue("hide_passed") == "true"
+
+	schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location, hidePassedTrains)
 
 	data := map[string]interface{}{
 		"IdentifierType": identifierType,

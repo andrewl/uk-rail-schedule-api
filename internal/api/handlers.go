@@ -64,7 +64,7 @@ func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 			location = r.URL.Query().Get("location")
 		}
 
-		schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location)
+		schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location, r.URL.Query().Get("hidePassed") == "true")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

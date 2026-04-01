@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 	"uk-rail-schedule-api/internal/api"
 	"uk-rail-schedule-api/internal/config"
@@ -45,7 +46,8 @@ func main() {
 	s := store.New(database, version)
 
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"now": func() string { return time.Now().Format("2006-01-02") },
+		"now":     func() string { return time.Now().Format("2006-01-02") },
+		"daysRun": formatDaysRun,
 	}).ParseFS(templateFS,
 		"templates/*.html",
 		"templates/partials/*.html",
@@ -116,4 +118,47 @@ func setupLogger() *slog.Logger {
 		Level:     slog.LevelDebug,
 		AddSource: true,
 	}))
+}
+
+// formatDaysRun converts a CIF schedule_days_runs string (7 chars, Mon–Sun)
+// into a human-readable description such as "Mon–Fri", "Daily", or "Mon, Wed, Fri".
+func formatDaysRun(days string) string {
+	if len(days) != 7 {
+		return days
+	}
+
+	names := [7]string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+
+	if days == "1111111" {
+		return "Daily"
+	}
+	if days == "1111100" {
+		return "Mon–Fri"
+	}
+	if days == "0000011" {
+		return "Sat & Sun"
+	}
+	if days == "1111110" {
+		return "Mon–Sat"
+	}
+
+	var active []string
+	for i, ch := range days {
+		if ch == '1' {
+			active = append(active, names[i])
+		}
+	}
+	if len(active) == 0 {
+		return "No days"
+	}
+	// Check for a contiguous range worth abbreviating (3+ days)
+	if len(active) >= 3 {
+		first := strings.Index(days, "1")
+		last := strings.LastIndex(days, "1")
+		run := last - first + 1
+		if run == len(active) {
+			return names[first] + "–" + names[last]
+		}
+	}
+	return strings.Join(active, ", ")
 }

@@ -1,7 +1,7 @@
-{{if .Error}}
+{{define "partials/schedules.html"}}{{if .Error}}
   <p class="error">{{.Error}}</p>
 {{else if not .Schedules}}
-  <p class="no-results">No schedules found for <strong>{{.Identifier}}</strong> on {{.Date}}.</p>
+  <p class="no-results">No schedules found{{if .Identifier}} for <strong>{{.Identifier}}</strong>{{end}} on {{.Date}}.</p>
 {{else}}
   <h3>{{len .Schedules}} schedule(s) for {{.Identifier}} on {{.Date}}</h3>
   {{range .Schedules}}
@@ -17,7 +17,7 @@
       <dt>To</dt><dd>{{.Destination}}</dd>
       <dt>Power type</dt><dd>{{.CIFPowerTypeDescription}}</dd>
       <dt>Train category</dt><dd>{{.CIFTrainCategoryDescription}}</dd>
-      <dt>Days runs</dt><dd>{{.ScheduleDaysRuns}}</dd>
+      <dt>Days run</dt><dd>{{daysRun .ScheduleDaysRuns}}</dd>
       <dt>Valid</dt><dd>{{.ScheduleStartDate}} – {{.ScheduleEndDate}}</dd>
     </dl>
     {{if .ScheduleLocation}}
@@ -36,7 +36,11 @@
         </thead>
         <tbody>
           {{range .ScheduleLocation}}
+          {{if and (not .PublicArrival) (not .PublicDeparture)}}
+          <tr style="font-style:italic">
+          {{else}}
           <tr>
+          {{end}}
             <td>{{.TiplocCode}}</td>
             <td>{{.Arrival}}</td>
             <td>{{.Departure}}</td>
@@ -51,4 +55,5 @@
     {{end}}
   </article>
   {{end}}
+{{end}}
 {{end}}

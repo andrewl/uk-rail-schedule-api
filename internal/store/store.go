@@ -70,7 +70,7 @@ func (s *Store) GetStatus() (APIStatus, error) {
 	return status, nil
 }
 
-func (s *Store) GetSchedules(identifierType, identifier, date, toc, location string) ([]schedule.Schedule, error) {
+func (s *Store) GetSchedules(identifierType, identifier, date, toc, location string, hidePassedTrains bool) ([]schedule.Schedule, error) {
 	var schedules []schedule.Schedule
 	var tiploc schedule.Tiploc
 
@@ -82,7 +82,11 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 
 	switch identifierType {
 	case "headcode", "signallingid":
-		identifierFilter = fmt.Sprintf("signalling_id = \"%s\"", identifier)
+		if identifier == "" {
+			identifierFilter = "1=1"
+		} else {
+			identifierFilter = fmt.Sprintf("signalling_id = \"%s\"", identifier)
+		}
 	case "ciftrainuid", "trainuid":
 		identifierFilter = fmt.Sprintf("cif_train_uid = \"%s\"", identifier)
 	case "tiploc":
@@ -187,6 +191,42 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 		if schedules[idx].TimeOfArrivalAtDestinationTS < schedules[idx].TimeOfDepartureFromOriginTS {
 			schedules[idx].TimeOfArrivalAtDestinationTS += 86400
 		}
+	}
+
+	if hidePassedTrains {
+		now := time.Now().Unix()
+		filtered := schedules[:0]
+		for _, sch := range schedules {
+			if location != "any" {
+				// Find the scheduled time at the requested TIPLOC; keep if not yet passed.
+				var tiplocTime int64
+				for _, loc := range sch.ScheduleLocation {
+					if loc.TiplocCode != location {
+						continue
+					}
+					t := loc.Departure
+					if t == "" {
+						t = loc.Pass
+					}
+					if t == "" {
+						t = loc.Arrival
+					}
+					if t != "" {
+						tiplocTime, _ = combineDateAndTime(ts.Unix(), t)
+					}
+					break
+				}
+				if tiplocTime == 0 || tiplocTime >= now {
+					filtered = append(filtered, sch)
+				}
+			} else {
+				// No TIPLOC filter: keep if the train hasn't yet reached its destination.
+				if sch.TimeOfArrivalAtDestinationTS == 0 || sch.TimeOfArrivalAtDestinationTS >= now {
+					filtered = append(filtered, sch)
+				}
+			}
+		}
+		schedules = filtered
 	}
 
 	if len(schedules) > 0 {

@@ -1,4 +1,4 @@
-<div class="status-bar">
+{{define "partials/status.html"}}<div class="status-bar">
   <span>Feed schedules: <strong>{{.ScheduleFileCount}}</strong></span>
   <span>VSTP schedules: <strong>{{.VSTPCount}}</strong></span>
   <span>VSTP last 30m: <strong>{{.VSTPCountLastHalfHour}}</strong></span>
@@ -8,3 +8,4 @@
   {{if .LatestVSTP}}<span>Latest VSTP: <strong>{{.LatestVSTP}}</strong></span>{{end}}
   <span class="version">v{{.Version}}</span>
 </div>
+{{end}}

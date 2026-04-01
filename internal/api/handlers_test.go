@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"uk-rail-schedule-api/internal/api"
 	"uk-rail-schedule-api/internal/schedule"
@@ -209,12 +210,22 @@ func TestRunRefresh_WhenIdle(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
+	// Wait for the background refresh goroutine to finish so it doesn't
+	// reset the flag and race with subsequent tests.
+	for internalsync.IsRefreshingDatabase() {
+		time.Sleep(time.Millisecond)
+	}
+
 	if rec.Code != http.StatusCreated {
 		t.Errorf("expected 201, got %d", rec.Code)
 	}
 }
 
 func TestRunRefresh_WhenBusy(t *testing.T) {
+	// Allow any goroutine spawned by a prior test to finish so it doesn't
+	// race with our manual flag-set below.
+	time.Sleep(50 * time.Millisecond)
+
 	internalsync.SetRefreshingDatabase(true)
 	t.Cleanup(func() { internalsync.SetRefreshingDatabase(false) })
 
