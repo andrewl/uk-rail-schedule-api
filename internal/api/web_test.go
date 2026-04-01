@@ -67,6 +67,12 @@ func TestGetIndex_RendersHTML(t *testing.T) {
 	}
 }
 
+func htmxRequest(method, url string) *http.Request {
+	req := httptest.NewRequest(method, url, nil)
+	req.Header.Set("HX-Request", "true")
+	return req
+}
+
 func TestSearch_NoResults(t *testing.T) {
 	db := setupTestDB(t)
 	wh := &api.WebHandler{
@@ -75,7 +81,7 @@ func TestSearch_NoResults(t *testing.T) {
 	}
 	router := buildWebRouter(wh)
 
-	req := httptest.NewRequest(http.MethodGet, "/search?identifier=9Z99&identifier_type=headcode&date=2023-05-21", nil)
+	req := htmxRequest(http.MethodGet, "/search?identifier=9Z99&identifier_type=headcode&date=2023-05-21")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -100,7 +106,7 @@ func TestSearch_WithResults(t *testing.T) {
 	}
 	router := buildWebRouter(wh)
 
-	req := httptest.NewRequest(http.MethodGet, "/search?identifier=2A20&identifier_type=headcode&date=2023-05-21", nil)
+	req := htmxRequest(http.MethodGet, "/search?identifier=2A20&identifier_type=headcode&date=2023-05-21")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -123,7 +129,7 @@ func TestSearch_DefaultsToHeadcodeType(t *testing.T) {
 	router := buildWebRouter(wh)
 
 	// identifier_type omitted — should default to "headcode"
-	req := httptest.NewRequest(http.MethodGet, "/search?identifier=2A20&date=2023-05-21", nil)
+	req := htmxRequest(http.MethodGet, "/search?identifier=2A20&date=2023-05-21")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -143,13 +149,16 @@ func TestSearch_DefaultsDateToToday(t *testing.T) {
 	}
 	router := buildWebRouter(wh)
 
-	// date omitted — should default to today without error
-	req := httptest.NewRequest(http.MethodGet, "/search?identifier=2A20&identifier_type=headcode", nil)
+	// date omitted — server returns a validation error (still 200 with error in partial)
+	req := htmxRequest(http.MethodGet, "/search?identifier=2A20&identifier_type=headcode")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 (even with no results), got %d", rec.Code)
+		t.Fatalf("expected 200 with validation error in body, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "date") {
+		t.Errorf("expected validation error mentioning date, got: %q", rec.Body.String())
 	}
 }
 
@@ -161,7 +170,7 @@ func TestSearch_InvalidIdentifierTypeRenderedInTemplate(t *testing.T) {
 	}
 	router := buildWebRouter(wh)
 
-	req := httptest.NewRequest(http.MethodGet, "/search?identifier=2A20&identifier_type=INVALID&date=2023-05-21", nil)
+	req := htmxRequest(http.MethodGet, "/search?identifier=2A20&identifier_type=INVALID&date=2023-05-21")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

@@ -76,7 +76,7 @@ func main() {
 
 	// htmx web UI
 	r.Get("/", wh.GetIndex)
-	r.Post("/search", wh.Search)
+	r.Get("/search", wh.Search)
 	r.Get("/status/partial", wh.GetStatusPartial)
 
 	// JSON API

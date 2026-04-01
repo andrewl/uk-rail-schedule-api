@@ -3,39 +3,40 @@
 {{define "content"}}
 <section class="search">
   <h2>Search Schedules</h2>
-  <form hx-post="/search"
+  <form hx-get="/search"
         hx-target="#results"
         hx-swap="innerHTML"
+        hx-push-url="true"
         hx-indicator="#spinner">
 
     <div class="form-inline">
       <div class="form-field">
         <label for="identifier">Train ID</label>
         <input id="identifier" name="identifier" type="text"
-               placeholder="e.g. 1A23">
+               placeholder="e.g. 1A23" value="{{.Identifier}}">
       </div>
 
       <div class="form-field">
         <label for="date">Date</label>
         <input id="date" name="date" type="date"
-               value="{{now}}" required>
+               value="{{if .Date}}{{.Date}}{{else}}{{now}}{{end}}" required>
       </div>
 
       <div class="form-field">
         <label for="toc">Operator</label>
         <input id="toc" name="toc" type="text"
-               placeholder="e.g. GW">
+               placeholder="e.g. GW" value="{{.TOC}}">
       </div>
 
       <div class="form-field">
         <label for="location">TIPLOC</label>
         <input id="location" name="location" type="text"
-               placeholder="e.g. DRBY">
+               placeholder="e.g. DRBY" value="{{.Location}}">
       </div>
 
       <div class="form-field form-field--check">
         <label>
-          <input type="checkbox" name="hide_passed" value="true">
+          <input type="checkbox" name="hide_passed" value="true"{{if .HidePassed}} checked{{end}}>
           Hide passed
         </label>
       </div>
@@ -47,6 +48,8 @@
 </section>
 
 <section id="results">
-  <!-- htmx schedule results rendered here -->
+  {{if .Searched}}
+    {{template "partials/schedules.html" .}}
+  {{end}}
 </section>
 {{end}}
