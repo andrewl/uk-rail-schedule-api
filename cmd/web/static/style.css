@@ -93,6 +93,8 @@ dt { font-weight: 600; }
 }
 .calling-points th { background: #f5f5f5; }
 
+.time { font-variant-numeric: tabular-nums; color: #555; margin-left: 0.4em; }
+
 footer { margin-top: 2rem; border-top: 1px solid #ddd; padding-top: 0.5rem; }
 .status-bar { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: #555; }
 .version { margin-left: auto; }

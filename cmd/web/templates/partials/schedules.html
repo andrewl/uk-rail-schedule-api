@@ -13,8 +13,8 @@
     </header>
     <dl>
       <dt>UID</dt><dd>{{.CIFTrainUID}}</dd>
-      <dt>From</dt><dd>{{.Origin}}</dd>
-      <dt>To</dt><dd>{{.Destination}}</dd>
+      <dt>From</dt><dd>{{.Origin}}{{if .TimeOfDepartureFromOrigin}} <span class="time">{{.TimeOfDepartureFromOrigin}}</span>{{end}}</dd>
+      <dt>To</dt><dd>{{.Destination}}{{if .TimeOfArrivalAtDestination}} <span class="time">{{.TimeOfArrivalAtDestination}}</span>{{end}}</dd>
       <dt>Power type</dt><dd>{{.CIFPowerTypeDescription}}</dd>
       <dt>Train category</dt><dd>{{.CIFTrainCategoryDescription}}</dd>
       <dt>Days run</dt><dd>{{daysRun .ScheduleDaysRuns}}</dd>

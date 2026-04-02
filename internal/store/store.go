@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"time"
 	"uk-rail-schedule-api/internal/schedule"
@@ -178,12 +179,14 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 				s.DB.Where("tiploc_code = ?", l.TiplocCode).First(&tiploc)
 				schedules[idx].Origin = tiploc.TpsDescription
 				schedules[idx].TimeOfDepartureFromOriginTS, _ = combineDateAndTime(ts.Unix(), l.Departure)
+				schedules[idx].TimeOfDepartureFromOrigin = formatWTTTime(l.Departure)
 			}
 			// LT - Termination location; TF - Train Finishes (VSTP)
 			if l.RecordIdentity == "LT" || l.RecordIdentity == "TF" {
 				s.DB.Where("tiploc_code = ?", l.TiplocCode).First(&tiploc)
 				schedules[idx].Destination = tiploc.TpsDescription
 				schedules[idx].TimeOfArrivalAtDestinationTS, _ = combineDateAndTime(ts.Unix(), l.Arrival)
+				schedules[idx].TimeOfArrivalAtDestination = formatWTTTime(l.Arrival)
 			}
 		}
 
@@ -229,6 +232,51 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 		schedules = filtered
 	}
 
+	// Sort schedules in time order. When a TIPLOC is active, sort by the time
+	// the train is at that TIPLOC (Arrival → Pass → Departure). Otherwise sort
+	// by departure from origin.
+	sortTiploc := ""
+	if identifierType == "tiploc" {
+		sortTiploc = identifier
+	} else if location != "any" {
+		sortTiploc = location
+	}
+
+	sortKeys := make([]int64, len(schedules))
+	for i, sch := range schedules {
+		if sortTiploc != "" {
+			for _, loc := range sch.ScheduleLocation {
+				if loc.TiplocCode != sortTiploc {
+					continue
+				}
+				t := loc.Arrival
+				if t == "" {
+					t = loc.Pass
+				}
+				if t == "" {
+					t = loc.Departure
+				}
+				if t != "" {
+					sortKeys[i], _ = combineDateAndTime(ts.Unix(), t)
+				}
+				break
+			}
+		} else {
+			sortKeys[i] = sch.TimeOfDepartureFromOriginTS
+		}
+	}
+
+	sort.Slice(schedules, func(i, j int) bool {
+		ki, kj := sortKeys[i], sortKeys[j]
+		if ki == 0 {
+			return false
+		}
+		if kj == 0 {
+			return true
+		}
+		return ki < kj
+	})
+
 	if len(schedules) > 0 {
 		return schedules, nil
 	}
@@ -258,4 +306,12 @@ func combineDateAndTime(date int64, wttTime string) (int64, error) {
 
 	newTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), hours, minutes, 0, 0, currentTime.Location())
 	return newTime.Unix(), nil
+}
+
+// formatWTTTime formats a WTT time string "HHMM" or "HHMMSS" as "HH:MM".
+func formatWTTTime(wttTime string) string {
+	if len(wttTime) < 4 {
+		return ""
+	}
+	return wttTime[:2] + ":" + wttTime[2:4]
 }

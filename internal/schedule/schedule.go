@@ -68,7 +68,9 @@ type Schedule struct {
 	Origin                       string `json:"origin,omitempty"`
 	Destination                  string `json:"destination,omitempty"`
 	TimeOfDepartureFromOriginTS  int64  `json:"time_of_departure_from_origin_ts"`
+	TimeOfDepartureFromOrigin    string `json:"time_of_departure_from_origin,omitempty"`
 	TimeOfArrivalAtDestinationTS int64  `json:"time_of_arrival_at_destination_ts"`
+	TimeOfArrivalAtDestination   string `json:"time_of_arrival_at_destination,omitempty"`
 }
 
 // ScheduleLocation represents a location associated with a schedule, including arrival/departure times and other details.
