@@ -242,8 +242,11 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 		sortTiploc = location
 	}
 
-	sortKeys := make([]int64, len(schedules))
-	for i, sch := range schedules {
+	// getSortKey returns the sort timestamp for a schedule. Because sort.Slice
+	// swaps elements of schedules in-place, the key must be computed from the
+	// schedule value at the current index rather than from a pre-built array
+	// (which would go out of sync with the slice as elements are moved).
+	getSortKey := func(sch schedule.Schedule) int64 {
 		if sortTiploc != "" {
 			for _, loc := range sch.ScheduleLocation {
 				if loc.TiplocCode != sortTiploc {
@@ -257,17 +260,19 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 					t = loc.Departure
 				}
 				if t != "" {
-					sortKeys[i], _ = combineDateAndTime(ts.Unix(), t)
+					key, _ := combineDateAndTime(ts.Unix(), t)
+					return key
 				}
 				break
 			}
-		} else {
-			sortKeys[i] = sch.TimeOfDepartureFromOriginTS
+			return 0
 		}
+		return sch.TimeOfDepartureFromOriginTS
 	}
 
 	sort.Slice(schedules, func(i, j int) bool {
-		ki, kj := sortKeys[i], sortKeys[j]
+		ki := getSortKey(schedules[i])
+		kj := getSortKey(schedules[j])
 		if ki == 0 {
 			return false
 		}
