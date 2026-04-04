@@ -14,12 +14,14 @@ type WebHandler struct {
 	Templates *template.Template
 }
 
-// indexData is passed to the index.html template for both the home page and
-// direct (non-htmx) permalink loads of /search.
+// indexData is passed to the index.html template for the home page and for
+// direct (non-HTMX) permalink loads of /search.
 type indexData struct {
 	store.APIStatus
 	// Form pre-fill values
-	Identifier string
+	Headcode   string
+	Tiploc     string
+	TrainUID   string
 	Date       string
 	TOC        string
 	Location   string
@@ -43,11 +45,10 @@ func (h *WebHandler) GetIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
-	identifier := r.FormValue("identifier")
-	identifierType := r.FormValue("identifier_type")
-	if identifierType == "" {
-		identifierType = "headcode"
-	}
+	headcode := r.FormValue("headcode")
+	tiploc := r.FormValue("tiploc")
+	trainUID := r.FormValue("trainuid")
+	identifierType, identifier := resolveIdentifier(headcode, tiploc, trainUID)
 	date := r.FormValue("date")
 	toc := r.FormValue("toc")
 	location := r.FormValue("location")
@@ -59,11 +60,10 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	renderPartialError := func(msg string) {
 		data := map[string]interface{}{
-			"IdentifierType": identifierType,
-			"Identifier":     identifier,
-			"Date":           date,
-			"Schedules":      nil,
-			"Error":          msg,
+			"Identifier": identifier,
+			"Date":       date,
+			"Schedules":  nil,
+			"Error":      msg,
 		}
 		if err := h.Templates.ExecuteTemplate(w, "partials/schedules.html", data); err != nil {
 			slog.Error("Failed to render schedules partial", "error", err)
@@ -71,17 +71,20 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	renderFullError := func(msg string) {
+	renderFullPage := func(schedules []schedule.Schedule, errMsg string) {
 		status, _ := h.Store.GetStatus()
 		data := indexData{
-			APIStatus:   status,
-			Identifier:  identifier,
-			Date:        date,
-			TOC:         toc,
-			Location:    location,
-			HidePassed:  hidePassedTrains,
-			Searched:    true,
-			Error: msg,
+			APIStatus:  status,
+			Headcode:   headcode,
+			Tiploc:     tiploc,
+			TrainUID:   trainUID,
+			Date:       date,
+			TOC:        toc,
+			Location:   location,
+			HidePassed: hidePassedTrains,
+			Searched:   true,
+			Schedules:  schedules,
+			Error:      errMsg,
 		}
 		if err := h.Templates.ExecuteTemplate(w, "index.html", data); err != nil {
 			slog.Error("Failed to render index template", "error", err)
@@ -93,16 +96,16 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 		if isHtmx {
 			renderPartialError("Please enter a date.")
 		} else {
-			renderFullError("Please enter a date.")
+			renderFullPage(nil, "Please enter a date.")
 		}
 		return
 	}
-	if identifier == "" && toc == "" && location == "" {
-		msg := "Please enter at least one of: train identifier, operator, or location."
+	if headcode == "" && tiploc == "" && trainUID == "" && toc == "" && location == "" {
+		msg := "Please enter at least one of: headcode, TIPLOC, operator, or location."
 		if isHtmx {
 			renderPartialError(msg)
 		} else {
-			renderFullError(msg)
+			renderFullPage(nil, msg)
 		}
 		return
 	}
@@ -120,11 +123,10 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	if isHtmx {
 		data := map[string]interface{}{
-			"IdentifierType": identifierType,
-			"Identifier":     identifier,
-			"Date":           date,
-			"Schedules":      schedules,
-			"Error":          "",
+			"Identifier": identifier,
+			"Date":       date,
+			"Schedules":  schedules,
+			"Error":      "",
 		}
 		if err != nil {
 			data["Error"] = err.Error()
@@ -136,25 +138,13 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Full-page response for direct permalink navigation.
-	status, _ := h.Store.GetStatus()
-	data := indexData{
-		APIStatus:   status,
-		Identifier:  identifier,
-		Date:        date,
-		TOC:         toc,
-		Location:    location,
-		HidePassed:  hidePassedTrains,
-		Searched:    true,
-		Schedules:   schedules,
-	}
+	// Non-HTMX requests (direct browser navigation / shared permalink) get the
+	// full page so the form is pre-filled and results are visible immediately.
+	errMsg := ""
 	if err != nil {
-		data.Error = err.Error()
+		errMsg = err.Error()
 	}
-	if err := h.Templates.ExecuteTemplate(w, "index.html", data); err != nil {
-		slog.Error("Failed to render index template", "error", err)
-		http.Error(w, "template error", 500)
-	}
+	renderFullPage(schedules, errMsg)
 }
 
 func (h *WebHandler) GetStatusPartial(w http.ResponseWriter, r *http.Request) {

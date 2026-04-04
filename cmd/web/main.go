@@ -80,19 +80,19 @@ func main() {
 	r.Get("/status/partial", wh.GetStatusPartial)
 
 	// JSON API
-	r.Route("/schedules/{identifierType}/{identifier}", func(r chi.Router) {
+	r.Route("/api", func(r chi.Router) {
 		r.Use(render.SetContentType(render.ContentTypeJSON))
-		r.Use(h.SchedulesCtx)
-		r.Get("/", h.GetSchedules)
-	})
-	r.Route("/status", func(r chi.Router) {
-		r.Use(render.SetContentType(render.ContentTypeJSON))
-		r.Use(h.StatusCtx)
-		r.Get("/", h.GetStatus)
-	})
-	r.Route("/refresh", func(r chi.Router) {
-		r.Use(render.SetContentType(render.ContentTypeJSON))
-		r.Get("/", h.RunRefresh)
+		r.Route("/schedules", func(r chi.Router) {
+			r.Use(h.SchedulesCtx)
+			r.Get("/", h.GetSchedules)
+		})
+		r.Route("/status", func(r chi.Router) {
+			r.Use(h.StatusCtx)
+			r.Get("/", h.GetStatus)
+		})
+		r.Route("/refresh", func(r chi.Router) {
+			r.Get("/", h.RunRefresh)
+		})
 	})
 
 	addr := config.GetHTTPListenAddress()

@@ -11,9 +11,15 @@
 
     <div class="form-inline">
       <div class="form-field">
-        <label for="identifier">Train ID</label>
-        <input id="identifier" name="identifier" type="text"
-               placeholder="e.g. 1A23" value="{{.Identifier}}">
+        <label for="headcode">Headcode</label>
+        <input id="headcode" name="headcode" type="text"
+               placeholder="e.g. 1A23" value="{{.Headcode}}">
+      </div>
+
+      <div class="form-field">
+        <label for="tiploc">TIPLOC Search</label>
+        <input id="tiploc" name="tiploc" type="text"
+               placeholder="e.g. DRBY" value="{{.Tiploc}}">
       </div>
 
       <div class="form-field">

@@ -8,16 +8,16 @@ import (
 	"uk-rail-schedule-api/internal/store"
 	internalsync "uk-rail-schedule-api/internal/sync"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
 // ScheduleAPIResponse is the JSON envelope returned by the schedules endpoint.
 type ScheduleAPIResponse struct {
-	IdentifierType string              `json:"identifierType"`
-	Identifier     string              `json:"identifier"`
-	Date           string              `json:"date"`
-	Schedules      []schedule.Schedule `json:"schedules"`
+	Headcode  string              `json:"headcode,omitempty"`
+	Tiploc    string              `json:"tiploc,omitempty"`
+	TrainUID  string              `json:"trainuid,omitempty"`
+	Date      string              `json:"date"`
+	Schedules []schedule.Schedule `json:"schedules"`
 }
 
 // ErrResponse is a renderable error for chi/render.
@@ -46,8 +46,10 @@ type Handler struct {
 
 func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		identifierType := chi.URLParam(r, "identifierType")
-		identifier := chi.URLParam(r, "identifier")
+		headcode := r.URL.Query().Get("headcode")
+		tiploc := r.URL.Query().Get("tiploc")
+		trainUID := r.URL.Query().Get("trainuid")
+		identifierType, identifier := resolveIdentifier(headcode, tiploc, trainUID)
 
 		date := time.Now().Format("2006-01-02")
 		if r.URL.Query().Has("date") {
@@ -64,7 +66,7 @@ func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 			location = r.URL.Query().Get("location")
 		}
 
-		schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location, r.URL.Query().Get("hidePassed") == "true")
+		schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location, r.URL.Query().Get("hide_passed") == "true")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -75,14 +77,31 @@ func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 		}
 
 		resp := ScheduleAPIResponse{
-			IdentifierType: identifierType,
-			Identifier:     identifier,
-			Date:           date,
-			Schedules:      schedules,
+			Headcode:  headcode,
+			Tiploc:    tiploc,
+			TrainUID:  trainUID,
+			Date:      date,
+			Schedules: schedules,
 		}
 		ctx := context.WithValue(r.Context(), "schedules", resp)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// resolveIdentifier maps the named identifier query parameters to the internal
+// identifierType/identifier pair used by the store. Precedence: headcode →
+// tiploc → trainuid. Returns ("headcode", "") if none are set.
+func resolveIdentifier(headcode, tiploc, trainuid string) (identifierType, identifier string) {
+	switch {
+	case headcode != "":
+		return "headcode", headcode
+	case tiploc != "":
+		return "tiploc", tiploc
+	case trainuid != "":
+		return "trainuid", trainuid
+	default:
+		return "headcode", ""
+	}
 }
 
 func (h *Handler) StatusCtx(next http.Handler) http.Handler {

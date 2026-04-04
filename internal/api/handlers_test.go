@@ -56,18 +56,20 @@ func seedSchedule(t *testing.T, db *gorm.DB, signallingID, trainUID string) {
 	}
 }
 
-// buildRouter wires a chi router with the JSON API routes using the given handler.
+// buildRouter wires a chi router with the JSON API routes under /api using the given handler.
 func buildRouter(h *api.Handler) http.Handler {
 	r := chi.NewRouter()
-	r.Route("/schedules/{identifierType}/{identifier}", func(r chi.Router) {
-		r.Use(h.SchedulesCtx)
-		r.Get("/", h.GetSchedules)
+	r.Route("/api", func(r chi.Router) {
+		r.Route("/schedules", func(r chi.Router) {
+			r.Use(h.SchedulesCtx)
+			r.Get("/", h.GetSchedules)
+		})
+		r.Route("/status", func(r chi.Router) {
+			r.Use(h.StatusCtx)
+			r.Get("/", h.GetStatus)
+		})
+		r.Post("/refresh", h.RunRefresh)
 	})
-	r.Route("/status", func(r chi.Router) {
-		r.Use(h.StatusCtx)
-		r.Get("/", h.GetStatus)
-	})
-	r.Post("/refresh", h.RunRefresh)
 	return r
 }
 
@@ -76,7 +78,7 @@ func TestGetSchedules_NotFound(t *testing.T) {
 	h := &api.Handler{Store: store.New(db, "test")}
 	router := buildRouter(h)
 
-	req := httptest.NewRequest(http.MethodGet, "/schedules/headcode/9Z99?date=2023-05-21", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=9Z99&date=2023-05-21", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -92,7 +94,7 @@ func TestGetSchedules_ReturnsJSON(t *testing.T) {
 	router := buildRouter(h)
 
 	// 2023-05-21 is a Sunday — matches ScheduleDaysRuns "0000001"
-	req := httptest.NewRequest(http.MethodGet, "/schedules/headcode/2A20?date=2023-05-21", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=2A20&date=2023-05-21", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -104,28 +106,25 @@ func TestGetSchedules_ReturnsJSON(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp.IdentifierType != "headcode" {
-		t.Errorf("expected identifierType 'headcode', got %q", resp.IdentifierType)
-	}
-	if resp.Identifier != "2A20" {
-		t.Errorf("expected identifier '2A20', got %q", resp.Identifier)
+	if resp.Headcode != "2A20" {
+		t.Errorf("expected headcode '2A20', got %q", resp.Headcode)
 	}
 	if len(resp.Schedules) != 1 {
 		t.Errorf("expected 1 schedule, got %d", len(resp.Schedules))
 	}
 }
 
-func TestGetSchedules_InvalidIdentifierType(t *testing.T) {
+func TestGetSchedules_ByTiploc_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	h := &api.Handler{Store: store.New(db, "test")}
 	router := buildRouter(h)
 
-	req := httptest.NewRequest(http.MethodGet, "/schedules/INVALID/2A20?date=2023-05-21", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?tiploc=NONEXISTENT&date=2023-05-21", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d", rec.Code)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rec.Code)
 	}
 }
 
@@ -136,7 +135,7 @@ func TestGetSchedules_WithDateParam(t *testing.T) {
 	router := buildRouter(h)
 
 	// Querying on a Monday — schedule only runs Sundays, so should get 404
-	req := httptest.NewRequest(http.MethodGet, "/schedules/headcode/2A20?date=2023-05-22", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=2A20&date=2023-05-22", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -152,7 +151,7 @@ func TestGetSchedules_WithTOCFilter(t *testing.T) {
 	router := buildRouter(h)
 
 	// Filter by a different TOC — should not match
-	req := httptest.NewRequest(http.MethodGet, "/schedules/headcode/2A20?date=2023-05-21&toc=LN", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=2A20&date=2023-05-21&toc=LN", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -161,7 +160,7 @@ func TestGetSchedules_WithTOCFilter(t *testing.T) {
 	}
 
 	// Filter by the correct TOC — should match
-	req2 := httptest.NewRequest(http.MethodGet, "/schedules/headcode/2A20?date=2023-05-21&toc=GW", nil)
+	req2 := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=2A20&date=2023-05-21&toc=GW", nil)
 	rec2 := httptest.NewRecorder()
 	router.ServeHTTP(rec2, req2)
 
@@ -176,7 +175,7 @@ func TestGetStatus_ReturnsCounts(t *testing.T) {
 	h := &api.Handler{Store: store.New(db, "v1.0")}
 	router := buildRouter(h)
 
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -206,7 +205,7 @@ func TestRunRefresh_WhenIdle(t *testing.T) {
 	}
 	router := buildRouter(h)
 
-	req := httptest.NewRequest(http.MethodPost, "/refresh", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/refresh", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -233,7 +232,7 @@ func TestRunRefresh_WhenBusy(t *testing.T) {
 	h := &api.Handler{Store: store.New(db, "test")}
 	router := buildRouter(h)
 
-	req := httptest.NewRequest(http.MethodPost, "/refresh", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/refresh", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
