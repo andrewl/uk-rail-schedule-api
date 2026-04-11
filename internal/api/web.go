@@ -24,7 +24,6 @@ type indexData struct {
 	TrainUID   string
 	Date       string
 	TOC        string
-	Location   string
 	HidePassed bool
 	// Populated on permalink loads
 	Searched  bool
@@ -48,10 +47,8 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 	headcode := r.FormValue("headcode")
 	tiploc := r.FormValue("tiploc")
 	trainUID := r.FormValue("trainuid")
-	identifierType, identifier := resolveIdentifier(headcode, tiploc, trainUID)
 	date := r.FormValue("date")
 	toc := r.FormValue("toc")
-	location := r.FormValue("location")
 	hidePassedTrains := r.FormValue("hide_passed") == "true"
 
 	// htmx requests get just the results partial; direct browser navigation
@@ -60,7 +57,7 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	renderPartialError := func(msg string) {
 		data := map[string]interface{}{
-			"Identifier": identifier,
+			"Headcode": headcode,
 			"Date":       date,
 			"Schedules":  nil,
 			"Error":      msg,
@@ -80,7 +77,6 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 			TrainUID:   trainUID,
 			Date:       date,
 			TOC:        toc,
-			Location:   location,
 			HidePassed: hidePassedTrains,
 			Searched:   true,
 			Schedules:  schedules,
@@ -100,8 +96,8 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if headcode == "" && tiploc == "" && trainUID == "" && toc == "" && location == "" {
-		msg := "Please enter at least one of: headcode, TIPLOC, operator, or location."
+	if headcode == "" && tiploc == "" && trainUID == "" && toc == ""  {
+		msg := "Please enter at least one of: headcode, TIPLOC or operator."
 		if isHtmx {
 			renderPartialError(msg)
 		} else {
@@ -114,16 +110,17 @@ func (h *WebHandler) Search(w http.ResponseWriter, r *http.Request) {
 	if tocFilter == "" {
 		tocFilter = "any"
 	}
-	locationFilter := location
-	if locationFilter == "" {
-		locationFilter = "any"
+	/// THIS NEEDS TO BE TIPLOC FILTER!!!!
+	tiplocFilter := tiploc
+	if tiplocFilter == "" {
+		tiplocFilter = "any"
 	}
 
-	schedules, err := h.Store.GetSchedules(identifierType, identifier, date, tocFilter, locationFilter, hidePassedTrains)
+	schedules, err := h.Store.GetSchedules(headcode, date, tocFilter, tiplocFilter, hidePassedTrains)
 
 	if isHtmx {
 		data := map[string]interface{}{
-			"Identifier": identifier,
+			"Headcode": headcode,
 			"Date":       date,
 			"Schedules":  schedules,
 			"Error":      "",

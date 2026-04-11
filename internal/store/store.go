@@ -71,7 +71,7 @@ func (s *Store) GetStatus() (APIStatus, error) {
 	return status, nil
 }
 
-func (s *Store) GetSchedules(identifierType, identifier, date, toc, location string, hidePassedTrains bool) ([]schedule.Schedule, error) {
+func (s *Store) GetSchedules(headcode, date, toc, tiplocId string, hidePassedTrains bool) ([]schedule.Schedule, error) {
 	var schedules []schedule.Schedule
 	var tiploc schedule.Tiploc
 
@@ -79,22 +79,11 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 		return schedules, errors.New("db is nil")
 	}
 
-	var identifierFilter string
-
-	switch identifierType {
-	case "headcode", "signallingid":
-		if identifier == "" {
-			identifierFilter = "1=1"
-		} else {
-			identifierFilter = fmt.Sprintf("signalling_id = \"%s\"", identifier)
-		}
-	case "ciftrainuid", "trainuid":
-		identifierFilter = fmt.Sprintf("cif_train_uid = \"%s\"", identifier)
-	case "tiploc":
-		identifierFilter = fmt.Sprintf("id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", identifier)
-	default:
-		slog.Error("Failed to understand identifier type", "identifierType", identifierType)
-		return schedules, errors.New("failed to understand identifier type - need headcode, signallingid, ciftrainuid, trainuid, or tiploc")
+	var headcodeFilter string
+	if headcode == "" {
+		headcodeFilter = "1=1"
+	} else {
+		headcodeFilter = fmt.Sprintf("signalling_id = \"%s\"", headcode)
 	}
 
 	ts, err := time.Parse("2006-01-02", date)
@@ -116,31 +105,31 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 		atocFilter = fmt.Sprintf(" and atoc_code = \"%s\" ", toc)
 	}
 
-	var locationFilter string
-	if location != "any" {
-		locationFilter = fmt.Sprintf(" and id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", location)
+	var tiplocFilter string
+	if tiplocId != "any" {
+		tiplocFilter = fmt.Sprintf(" and id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", tiplocId)
 	}
 
 	slog.Debug("filters",
-		"identifier_filter", identifierFilter,
+		"headcode_filter", headcodeFilter,
 		"start_date", startDate, "end_date", endDate,
 		"day_filter", dayFilter,
 		"atoc_filter", atocFilter,
-		"location_filter", locationFilter,
+		"tiploc_filter", tiplocFilter,
 	)
 
 	/* Query applies STP indicator rules:
-	   C - Planned cancellation (train won't run)
-	   N - STP schedule (cannot be overlaid)
-	   O - Overlay schedule (alteration to permanent)
-	   P - Permanent schedule
-	   For any date, 'C' or 'O' beats 'P' (lowest alphabetical STP wins). */
+C - Planned cancellation (train won't run)
+N - STP schedule (cannot be overlaid)
+O - Overlay schedule (alteration to permanent)
+P - Permanent schedule
+For any date, 'C' or 'O' beats 'P' (lowest alphabetical STP wins). */
 	sqlErr := s.DB.Debug().Raw(
 		"SELECT * FROM schedules WHERE (cif_stp_indicator = 'P' or cif_stp_indicator = 'N') AND "+
-			identifierFilter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+
-			dayFilter+atocFilter+locationFilter,
+		headcodeFilter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+
+		dayFilter+atocFilter+tiplocFilter,
 		startDate, endDate,
-	).Scan(&schedules).Error
+		).Scan(&schedules).Error
 
 	if sqlErr != nil {
 		return nil, fmt.Errorf("error querying schedules: %w", sqlErr)
@@ -154,10 +143,10 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 	var overlays []schedule.Schedule
 	sqlErr = s.DB.Raw(
 		"SELECT * FROM schedules WHERE source=\"VSTP\" AND (cif_stp_indicator = 'O' or cif_stp_indicator = 'C') AND "+
-			identifierFilter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+
-			dayFilter+atocFilter+locationFilter,
+		headcodeFilter+" AND schedule_start_date_ts <= ? AND schedule_end_date_ts >= ? "+
+		dayFilter+atocFilter+tiplocFilter,
 		startDate, endDate,
-	).Scan(&overlays).Error
+		).Scan(&overlays).Error
 
 	if sqlErr != nil {
 		return nil, fmt.Errorf("error querying overlays: %w", sqlErr)
@@ -200,11 +189,11 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 		now := time.Now().Unix()
 		filtered := schedules[:0]
 		for _, sch := range schedules {
-			if location != "any" {
+			if tiplocId != "any" {
 				// Find the scheduled time at the requested TIPLOC; keep if not yet passed.
 				var tiplocTime int64
 				for _, loc := range sch.ScheduleLocation {
-					if loc.TiplocCode != location {
+					if loc.TiplocCode != tiplocId {
 						continue
 					}
 					t := loc.Departure
@@ -236,10 +225,8 @@ func (s *Store) GetSchedules(identifierType, identifier, date, toc, location str
 	// the train is at that TIPLOC (Arrival → Pass → Departure). Otherwise sort
 	// by departure from origin.
 	sortTiploc := ""
-	if identifierType == "tiploc" {
-		sortTiploc = identifier
-	} else if location != "any" {
-		sortTiploc = location
+	if tiplocId != "" {
+		sortTiploc = tiplocId
 	}
 
 	// getSortKey returns the sort timestamp for a schedule. Because sort.Slice

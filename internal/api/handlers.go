@@ -49,7 +49,6 @@ func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 		headcode := r.URL.Query().Get("headcode")
 		tiploc := r.URL.Query().Get("tiploc")
 		trainUID := r.URL.Query().Get("trainuid")
-		identifierType, identifier := resolveIdentifier(headcode, tiploc, trainUID)
 
 		date := time.Now().Format("2006-01-02")
 		if r.URL.Query().Has("date") {
@@ -61,12 +60,7 @@ func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 			toc = r.URL.Query().Get("toc")
 		}
 
-		location := "any"
-		if r.URL.Query().Has("location") {
-			location = r.URL.Query().Get("location")
-		}
-
-		schedules, err := h.Store.GetSchedules(identifierType, identifier, date, toc, location, r.URL.Query().Get("hide_passed") == "true")
+		schedules, err := h.Store.GetSchedules(headcode, date, toc, tiploc, r.URL.Query().Get("hide_passed") == "true")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
