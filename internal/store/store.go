@@ -12,6 +12,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// londonLocation is the Europe/London timezone, used when interpreting WTT times.
+// WTT times in the CIF schedule feed are always UK local time (GMT/BST).
+var londonLocation *time.Location
+
+func init() {
+	loc, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		panic(fmt.Sprintf("failed to load Europe/London timezone: %v", err))
+	}
+	londonLocation = loc
+}
+
 // APIStatus holds summary counts returned by the /status endpoint.
 type APIStatus struct {
 	Version                      string
@@ -276,14 +288,18 @@ For any date, 'C' or 'O' beats 'P' (lowest alphabetical STP wins). */
 }
 
 // combineDateAndTime combines a Unix date timestamp with a WTT time string "HHMM" or "HHMMSS".
+// WTT times are always UK local time (GMT/BST), so Europe/London is used when constructing
+// the combined timestamp to correctly account for daylight saving time.
 func combineDateAndTime(date int64, wttTime string) (int64, error) {
 	if len(wttTime) < 4 {
 		return 0, fmt.Errorf("wtt time too short: %q", wttTime)
 	}
 
-	currentTime := time.Now()
+	var currentTime time.Time
 	if date != 0 {
-		currentTime = time.Unix(date, 0)
+		currentTime = time.Unix(date, 0).In(londonLocation)
+	} else {
+		currentTime = time.Now().In(londonLocation)
 	}
 
 	hours, err := strconv.Atoi(wttTime[:2])
@@ -296,7 +312,7 @@ func combineDateAndTime(date int64, wttTime string) (int64, error) {
 		return 0, fmt.Errorf("error parsing minutes: %w", err)
 	}
 
-	newTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), hours, minutes, 0, 0, currentTime.Location())
+	newTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), hours, minutes, 0, 0, londonLocation)
 	return newTime.Unix(), nil
 }
 
