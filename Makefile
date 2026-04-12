@@ -21,4 +21,7 @@ dockerise:
 	@echo "Building the docker image as $(DOCKER_IMAGE_NAME)"
 	docker build -f Dockerfile -t $(shell basename $(shell pwd)):$(shell date +%Y%m%d%H%M%S) .
 
-.PHONY: build test run dockerise
+dev:
+	docker compose up --build
+
+.PHONY: build test run dockerise dev
