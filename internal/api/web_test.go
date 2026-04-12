@@ -25,7 +25,7 @@ func minimalTemplates(t *testing.T) *template.Template {
 		t.Fatal("failed to parse index template:", err)
 	}
 	_, err = tmpl.New("partials/schedules.html").Parse(
-		`{{define "partials/schedules.html"}}SCHEDULES:{{.Identifier}}:{{.Error}}:{{range .Schedules}}ITEM{{end}}{{end}}`,
+		`{{define "partials/schedules.html"}}SCHEDULES:{{.Headcode}}:{{.Error}}:{{range .Schedules}}ITEM{{end}}{{end}}`,
 	)
 	if err != nil {
 		t.Fatal("failed to parse schedules partial:", err)
@@ -53,7 +53,6 @@ func realisticIndexTemplate(t *testing.T) *template.Template {
 		`<input name="tiploc" value="{{.Tiploc}}">` +
 		`<input name="date" value="{{if .Date}}{{.Date}}{{else}}{{now}}{{end}}">` +
 		`<input name="toc" value="{{.TOC}}">` +
-		`<input name="location" value="{{.Location}}">` +
 		`{{if .HidePassed}}<input checked>{{end}}` +
 		`{{if .Searched}}{{template "partials/schedules.html" .}}{{end}}` +
 		`{{end}}`
@@ -310,6 +309,148 @@ func TestSearch_NonHtmx_NoSearchParams_RendersFullPage(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "headcode") {
 		t.Errorf("expected validation error mentioning headcode in response body, got: %q", rec.Body.String())
+	}
+}
+
+func TestGetIndex_NilDB(t *testing.T) {
+	// A nil-DB store causes GetStatus to fail; GetIndex should continue and
+	// render the template with an empty status rather than returning 500.
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(nil, "")},
+		Templates: minimalTemplates(t),
+	}
+	router := buildWebRouter(wh)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 even when DB is nil, got %d", rec.Code)
+	}
+}
+
+func TestGetStatusPartial_NilDB(t *testing.T) {
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(nil, "")},
+		Templates: minimalTemplates(t),
+	}
+	router := buildWebRouter(wh)
+
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when DB is nil, got %d", rec.Code)
+	}
+}
+
+func TestSearch_ByTiploc_WithResults(t *testing.T) {
+	db := setupTestDB(t)
+	seedScheduleWithLocation(t, db, "2A20", "C00206", "DRBY")
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(db, "test")},
+		Templates: minimalTemplates(t),
+	}
+	router := buildWebRouter(wh)
+
+	req := htmxRequest(http.MethodGet, "/search?tiploc=DRBY&date=2023-05-21")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "ITEM") {
+		t.Errorf("expected schedule results for TIPLOC search, got: %q", rec.Body.String())
+	}
+}
+
+func TestSearch_ByTOCOnly_WithResults(t *testing.T) {
+	db := setupTestDB(t)
+	seedSchedule(t, db, "2A20", "C00206") // AtocCode: "GW"
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(db, "test")},
+		Templates: minimalTemplates(t),
+	}
+	router := buildWebRouter(wh)
+
+	// Searching by toc only (no headcode/tiploc) is a valid search
+	req := htmxRequest(http.MethodGet, "/search?toc=GW&date=2023-05-21")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "ITEM") {
+		t.Errorf("expected schedule results for TOC-only search, got: %q", rec.Body.String())
+	}
+}
+
+func TestSearch_ByTOCOnly_NoMatch(t *testing.T) {
+	db := setupTestDB(t)
+	seedSchedule(t, db, "2A20", "C00206") // AtocCode: "GW"
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(db, "test")},
+		Templates: minimalTemplates(t),
+	}
+	router := buildWebRouter(wh)
+
+	req := htmxRequest(http.MethodGet, "/search?toc=LN&date=2023-05-21")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "ITEM") {
+		t.Errorf("expected no results for non-matching TOC, got: %q", rec.Body.String())
+	}
+}
+
+func TestSearch_NilDB_ReturnsError(t *testing.T) {
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(nil, "")},
+		Templates: minimalTemplates(t),
+	}
+	router := buildWebRouter(wh)
+
+	req := htmxRequest(http.MethodGet, "/search?headcode=2A20&date=2023-05-21")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	// Web handler surfaces DB errors in the template body rather than an HTTP error
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 with error in body, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "db is nil") {
+		t.Errorf("expected db error message in body, got: %q", rec.Body.String())
+	}
+}
+
+func TestSearch_NonHtmx_ByTiploc(t *testing.T) {
+	db := setupTestDB(t)
+	seedScheduleWithLocation(t, db, "2A20", "C00206", "DRBY")
+	wh := &api.WebHandler{
+		Handler:   api.Handler{Store: store.New(db, "test")},
+		Templates: realisticIndexTemplate(t),
+	}
+	router := buildWebRouter(wh)
+
+	req := httptest.NewRequest(http.MethodGet, "/search?tiploc=DRBY&date=2023-05-21", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "DRBY") {
+		t.Errorf("expected TIPLOC 'DRBY' pre-filled in form, got: %q", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "SCHEDULES") {
+		t.Errorf("expected schedules partial rendered, got: %q", rec.Body.String())
 	}
 }
 

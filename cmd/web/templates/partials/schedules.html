@@ -1,7 +1,7 @@
 {{define "partials/schedules.html"}}{{if .Error}}
   <p class="error">{{.Error}}</p>
 {{else if not .Schedules}}
-  <p class="no-results">No schedules found{{if .Identifier}} for {{.Date}}.</p>
+  <p class="no-results">No schedules found{{if .Headcode}} for {{.Date}}{{end}}.</p>
 {{else}}
   <h3>{{len .Schedules}} schedule(s) on {{.Date}}</h3>
   {{range .Schedules}}

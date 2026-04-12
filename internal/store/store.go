@@ -106,7 +106,7 @@ func (s *Store) GetSchedules(headcode, date, toc, tiplocId string, hidePassedTra
 	}
 
 	var tiplocFilter string
-	if tiplocId != "any" {
+	if tiplocId != "" && tiplocId != "any" {
 		tiplocFilter = fmt.Sprintf(" and id in (select schedule_id from schedule_locations where schedule_locations.tiploc_code = \"%s\")", tiplocId)
 	}
 
@@ -189,7 +189,7 @@ For any date, 'C' or 'O' beats 'P' (lowest alphabetical STP wins). */
 		now := time.Now().Unix()
 		filtered := schedules[:0]
 		for _, sch := range schedules {
-			if tiplocId != "any" {
+			if tiplocId != "" && tiplocId != "any" {
 				// Find the scheduled time at the requested TIPLOC; keep if not yet passed.
 				var tiplocTime int64
 				for _, loc := range sch.ScheduleLocation {
@@ -225,7 +225,7 @@ For any date, 'C' or 'O' beats 'P' (lowest alphabetical STP wins). */
 	// the train is at that TIPLOC (Arrival → Pass → Departure). Otherwise sort
 	// by departure from origin.
 	sortTiploc := ""
-	if tiplocId != "" {
+	if tiplocId != "" && tiplocId != "any" {
 		sortTiploc = tiplocId
 	}
 

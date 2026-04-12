@@ -220,6 +220,146 @@ func TestRunRefresh_WhenIdle(t *testing.T) {
 	}
 }
 
+func TestGetSchedules_HandlerWithoutContext(t *testing.T) {
+	db := setupTestDB(t)
+	h := &api.Handler{Store: store.New(db, "test")}
+
+	// Call GetSchedules directly without going through SchedulesCtx, so
+	// the "schedules" key is absent from the request context.
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules", nil)
+	rec := httptest.NewRecorder()
+	h.GetSchedules(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 when context is missing schedules key, got %d", rec.Code)
+	}
+}
+
+func TestGetStatus_HandlerWithoutContext(t *testing.T) {
+	db := setupTestDB(t)
+	h := &api.Handler{Store: store.New(db, "test")}
+
+	// Call GetStatus directly without going through StatusCtx.
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	rec := httptest.NewRecorder()
+	h.GetStatus(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 when context is missing status key, got %d", rec.Code)
+	}
+}
+
+func TestSchedulesCtx_NilDB(t *testing.T) {
+	h := &api.Handler{Store: store.New(nil, "test")}
+	router := buildRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=2A20&date=2023-05-21", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when DB is nil, got %d", rec.Code)
+	}
+}
+
+func TestStatusCtx_NilDB(t *testing.T) {
+	h := &api.Handler{Store: store.New(nil, "test")}
+	router := buildRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when DB is nil, got %d", rec.Code)
+	}
+}
+
+// seedScheduleWithLocation seeds a schedule that includes a single originating
+// location with the given TIPLOC code.
+func seedScheduleWithLocation(t *testing.T, db *gorm.DB, signallingID, trainUID, tiplocCode string) {
+	t.Helper()
+	sch := schedule.Schedule{
+		CIFStpIndicator:   "P",
+		SignallingID:      signallingID,
+		CIFTrainUID:       trainUID,
+		Source:            "Feed",
+		ScheduleDaysRuns:  "0000001", // Sunday
+		ScheduleStartDate: "2023-01-01",
+		ScheduleEndDate:   "2099-12-31",
+		AtocCode:          "GW",
+	}
+	sch.AugmentSchedule()
+	if err := db.Create(&sch).Error; err != nil {
+		t.Fatal("failed to seed schedule with location:", err)
+	}
+	loc := schedule.ScheduleLocation{
+		ScheduleID:     sch.ID,
+		RecordIdentity: "LO",
+		TiplocCode:     tiplocCode,
+		Departure:      "0930",
+	}
+	if err := db.Create(&loc).Error; err != nil {
+		t.Fatal("failed to seed schedule location:", err)
+	}
+}
+
+func TestGetSchedules_ByTiploc_Matches(t *testing.T) {
+	db := setupTestDB(t)
+	seedScheduleWithLocation(t, db, "2A20", "C00206", "DRBY")
+	h := &api.Handler{Store: store.New(db, "test")}
+	router := buildRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?tiploc=DRBY&date=2023-05-21", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp api.ScheduleAPIResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Tiploc != "DRBY" {
+		t.Errorf("expected tiploc 'DRBY' in response, got %q", resp.Tiploc)
+	}
+	if len(resp.Schedules) != 1 {
+		t.Errorf("expected 1 schedule, got %d", len(resp.Schedules))
+	}
+}
+
+func TestGetSchedules_ByTiploc_WrongDay(t *testing.T) {
+	db := setupTestDB(t)
+	seedScheduleWithLocation(t, db, "2A20", "C00206", "DRBY")
+	h := &api.Handler{Store: store.New(db, "test")}
+	router := buildRouter(h)
+
+	// Monday — schedule runs Sundays only
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?tiploc=DRBY&date=2023-05-22", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for Monday query on Sunday-only schedule, got %d", rec.Code)
+	}
+}
+
+func TestGetSchedules_InvalidDate(t *testing.T) {
+	db := setupTestDB(t)
+	h := &api.Handler{Store: store.New(db, "test")}
+	router := buildRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/schedules?headcode=2A20&date=not-a-date", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 for invalid date, got %d", rec.Code)
+	}
+}
+
 func TestRunRefresh_WhenBusy(t *testing.T) {
 	// Allow any goroutine spawned by a prior test to finish so it doesn't
 	// race with our manual flag-set below.
