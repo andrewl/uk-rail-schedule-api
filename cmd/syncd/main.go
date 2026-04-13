@@ -15,6 +15,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// version is set at build time via -ldflags "-X main.version=<value>".
+var version = "dev"
+
 func main() {
 	_ = godotenv.Load()
 
@@ -27,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("Starting schedule sync daemon")
+	slog.Info("Starting schedule sync daemon", "version", version)
 
 	// Initial load of schedule feed
 	go internalsync.RefreshSchedules(

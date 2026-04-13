@@ -1,14 +1,18 @@
 SYNCD_BIN := bin/syncd
 WEB_BIN   := bin/web
 
+VERSION    ?= dev
+BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS    := -X 'main.version=$(VERSION) $(BUILD_TIME)'
+
 ifneq (,$(wildcard .env))
     include .env
     export
 endif
 
 build:
-	go build -o $(SYNCD_BIN) ./cmd/syncd
-	go build -o $(WEB_BIN)   ./cmd/web
+	go build -ldflags="$(LDFLAGS)" -o $(SYNCD_BIN) ./cmd/syncd
+	go build -ldflags="$(LDFLAGS)" -o $(WEB_BIN)   ./cmd/web
 
 test:
 	go test ./...

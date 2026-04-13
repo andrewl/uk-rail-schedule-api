@@ -25,7 +25,7 @@ jobs:
           goos: linux
           goarch: amd64
           extra_files: config.yaml.example README.md
-          ldflags: -X "main.Version={{ env.APP_VERSION }} {{ env.BUILD_TIME }}"
+          ldflags: -X 'main.version=${{ env.APP_VERSION }} ${{ env.BUILD_TIME }}'
 
   release-linux-arm7:
     name: release linux/arm-7
@@ -44,7 +44,7 @@ jobs:
           goarch: arm
           goarm: 7
           extra_files: config.yaml.example README.md
-          ldflags: -X "main.Version={{ env.APP_VERSION }} {{ env.BUILD_TIME }}"
+          ldflags: -X 'main.version=${{ env.APP_VERSION }} ${{ env.BUILD_TIME }}'
 
   release-darwin-amd64:
     name: release darwin/amd64
@@ -62,4 +62,4 @@ jobs:
           goos: darwin
           goarch: amd64
           extra_files: config.yaml.example README.md
-          ldflags: -X "main.Version={{ env.APP_VERSION }} {{ env.BUILD_TIME }}"
+          ldflags: -X 'main.version=${{ env.APP_VERSION }} ${{ env.BUILD_TIME }}'

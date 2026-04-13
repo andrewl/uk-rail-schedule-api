@@ -28,8 +28,8 @@ var templateFS embed.FS
 //go:embed static
 var staticFS embed.FS
 
-// version is set at build time via -ldflags.
-var version string
+// version is set at build time via -ldflags "-X main.version=<value>".
+var version = "dev"
 
 func main() {
 	_ = godotenv.Load()
@@ -37,6 +37,7 @@ func main() {
 	logger := setupLogger()
 	slog.SetDefault(logger)
 
+	slog.Info("Starting web server", "version", version)
 	database, err := db.Open(config.GetDatabaseFilename())
 	if err != nil {
 		slog.Error("Failed to open database", "error", err)
