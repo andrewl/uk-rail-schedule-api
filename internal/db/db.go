@@ -11,9 +11,7 @@ import (
 
 // Open opens (or creates) the SQLite database at the given path and returns a GORM handle.
 func Open(databaseFilename string) (*gorm.DB, error) {
-	isNew := false
 	if _, err := os.Stat(databaseFilename); os.IsNotExist(err) {
-		isNew = true
 		slog.Info("Database doesn't exist - creating", "databaseFilename", databaseFilename)
 	}
 
@@ -22,13 +20,13 @@ func Open(databaseFilename string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	if isNew {
-		database.AutoMigrate(
-			&schedule.ScheduleLocation{},
-			&schedule.Schedule{},
-			&schedule.Tiploc{},
-			&schedule.Timetable{},
-		)
+	if err := database.AutoMigrate(
+		&schedule.ScheduleLocation{},
+		&schedule.Schedule{},
+		&schedule.Tiploc{},
+		&schedule.Timetable{},
+	); err != nil {
+		return nil, err
 	}
 
 	return database, nil

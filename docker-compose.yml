@@ -1,0 +1,29 @@
+services:
+  syncd:
+    build: .
+    command: ./syncd
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      SCHEDULE_FEED_FILENAME: /app/schedule.json
+      LOG_FILENAME: ""
+    volumes:
+      - ./data:/app/data
+      - ./schedule.json:/app/schedule.json:ro
+    restart: on-failure
+
+  web:
+    build: .
+    command: ./web
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      LISTEN_ON: "0.0.0.0:3333"
+      LOG_FILENAME: ""
+    ports:
+      - "3333:3333"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - syncd
+    restart: on-failure
