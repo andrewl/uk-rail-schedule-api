@@ -28,4 +28,10 @@ dockerise:
 dev:
 	docker compose up --build
 
-.PHONY: build test run dockerise dev
+update-feed:
+	./update-schedule-feed.sh
+
+dev-update-feed:
+	docker compose run --rm update-feed
+
+.PHONY: build test run dockerise dev update-feed dev-update-feed

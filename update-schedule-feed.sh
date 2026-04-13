@@ -54,8 +54,11 @@ if ! gunzip --stdout "$TMP_GZ" > "$TMP_JSON"; then
   exit 1
 fi
 
-# Atomically replace the feed file so the service never reads a partial file
-mv "$TMP_JSON" "$FEED_FILE"
+# Copy over the feed file. An atomic mv is not possible when the destination
+# is a Docker bind-mounted file (single-file mounts fix the inode), so we
+# use cp instead. The refresh API is called only after this completes, so the
+# service never reads a partial file.
+cp "$TMP_JSON" "$FEED_FILE"
 log "Feed written to ${FEED_FILE}"
 
 log "Triggering database refresh..."

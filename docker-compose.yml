@@ -27,3 +27,18 @@ services:
     depends_on:
       - syncd
     restart: on-failure
+
+  update-feed:
+    build: .
+    command: ./update-schedule-feed.sh
+    env_file: .env
+    environment:
+      SCHEDULE_FEED_FILENAME: /app/schedule.json
+      LISTEN_ON: "web:3333"
+    volumes:
+      - ./schedule.json:/app/schedule.json
+    depends_on:
+      - web
+    restart: "no"
+    profiles:
+      - tools

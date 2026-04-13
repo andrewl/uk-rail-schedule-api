@@ -13,11 +13,12 @@ RUN go build -o bin/syncd ./cmd/syncd && \
 
 # --- Runtime stage ---
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libsqlite3-0 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libsqlite3-0 curl gzip && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /app/bin/syncd ./syncd
 COPY --from=builder /app/bin/web   ./web
+COPY update-schedule-feed.sh ./update-schedule-feed.sh
 
 EXPOSE 3333
 CMD ["./web"]
