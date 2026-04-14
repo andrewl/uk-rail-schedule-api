@@ -30,6 +30,11 @@ jobs:
     - name: Test
       run: make test
 
+    - name: Vulnerability check
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
+
     - name: Upload binaries
       if: github.event_name == 'push'
       uses: actions/upload-artifact@v4

@@ -34,4 +34,7 @@ update-feed:
 dev-update-feed:
 	docker compose run --rm update-feed
 
-.PHONY: build test run dockerise dev update-feed dev-update-feed
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./... || true
+
+.PHONY: build test run dockerise dev update-feed dev-update-feed vuln
