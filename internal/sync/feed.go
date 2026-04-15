@@ -2,6 +2,7 @@ package sync
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 	"uk-rail-schedule-api/internal/schedule"
+	"uk-rail-schedule-api/internal/telemetry"
 
 	"gorm.io/gorm"
 )
@@ -102,6 +104,7 @@ func RefreshSchedules(filename string, db *gorm.DB, dataDir string, deleteExpire
 	var schedules []schedule.Schedule
 	var tiplocs []schedule.Tiploc
 	var existingSchedule schedule.Schedule
+	var scheduleCount, tiplocCount int64
 
 	for scanner.Scan() {
 		var record schedule.ScheduleFeedRecord
@@ -112,7 +115,7 @@ func RefreshSchedules(filename string, db *gorm.DB, dataDir string, deleteExpire
 			continue
 		}
 
-		// We check if the record is a schedule or a tiploc and insert it into the database in batches of 10 to improve performance. 
+		// We check if the record is a schedule or a tiploc and insert it into the database in batches of 10 to improve performance.
 		if record.IsSchedule() {
 			sch := record.JSONScheduleV1.ToSchedule(publishedAt)
 			sch.AugmentSchedule()
@@ -122,6 +125,7 @@ func RefreshSchedules(filename string, db *gorm.DB, dataDir string, deleteExpire
 			}
 
 			schedules = append(schedules, sch)
+			scheduleCount++
 			if len(schedules) == 10 {
 				db.Save(&schedules)
 				schedules = nil
@@ -130,6 +134,7 @@ func RefreshSchedules(filename string, db *gorm.DB, dataDir string, deleteExpire
 
 		if record.IsTiploc() {
 			tiplocs = append(tiplocs, record.Tiploc)
+			tiplocCount++
 			if len(tiplocs) == 10 {
 				db.Save(&tiplocs)
 				tiplocs = nil
@@ -145,6 +150,8 @@ func RefreshSchedules(filename string, db *gorm.DB, dataDir string, deleteExpire
 	}
 
 	db.Create(&scheduleFeedRecord.Timetable)
+
+	telemetry.RecordFeedRefreshCompleted(context.Background(), scheduleCount, tiplocCount)
 
 	// Replay any VSTP files in the data directory so we can recover from a database deletion
 	files, err := os.ReadDir(dataDir)

@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"time"
 	"uk-rail-schedule-api/internal/schedule"
+	"uk-rail-schedule-api/internal/telemetry"
 
 	gostomp "github.com/go-stomp/stomp/v3"
 	"gorm.io/gorm"
@@ -35,6 +37,7 @@ func ListenForVSTP(db *gorm.DB, stompURL, login, password, dataDir string) {
 
 			if err != nil {
 				slog.Warn(fmt.Sprintf("Could not connect to stomp. Pausing for %d seconds before retrying", timeout))
+				telemetry.RecordStompReconnect(context.Background())
 				time.Sleep(time.Duration(timeout) * time.Second)
 				timeout = timeout * 2
 				if timeout > maxTimeout {
@@ -82,8 +85,10 @@ func processVSTPMessage(subscription *gostomp.Subscription, db *gorm.DB, dataDir
 
 	if err := InsertVSTPFromBytes(msg.Body, db); err != nil {
 		slog.Error("Failed to insert vstp message", "error", err)
+		telemetry.RecordVSTPFailed(context.Background())
 		return err
 	}
+	telemetry.RecordVSTPProcessed(context.Background())
 	return nil
 }
 
