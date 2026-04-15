@@ -13,7 +13,7 @@ jobs:
     name: release linux/amd64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Set APP_VERSION environment
         run: echo APP_VERSION=$(echo ${GITHUB_REF} | rev | \
           cut -d'/' -f 1 | rev ) >> ${GITHUB_ENV}
@@ -31,7 +31,7 @@ jobs:
     name: release linux/arm-7
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Set APP_VERSION environment
         run: echo APP_VERSION=$(echo ${GITHUB_REF} | rev | \
           cut -d'/' -f 1 | rev ) >> ${GITHUB_ENV}
@@ -50,7 +50,7 @@ jobs:
     name: release darwin/amd64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Set APP_VERSION environment
         run: echo APP_VERSION=$(echo ${GITHUB_REF} | rev | \
           cut -d'/' -f 1 | rev ) >> ${GITHUB_ENV}
