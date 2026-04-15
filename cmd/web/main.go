@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"html/template"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"uk-rail-schedule-api/internal/config"
 	"uk-rail-schedule-api/internal/db"
 	"uk-rail-schedule-api/internal/store"
+	"uk-rail-schedule-api/internal/telemetry"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -38,6 +40,15 @@ func main() {
 	slog.SetDefault(logger)
 
 	slog.Info("Starting web server", "version", version)
+
+	ctx := context.Background()
+	shutdownTelemetry := telemetry.Setup(ctx, "uk-rail-schedule-api", version)
+	defer func() {
+		if err := shutdownTelemetry(ctx); err != nil {
+			slog.Error("Failed to shut down telemetry", "error", err)
+		}
+	}()
+
 	database, err := db.Open(config.GetDatabaseFilename())
 	if err != nil {
 		slog.Error("Failed to open database", "error", err)
@@ -69,6 +80,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(slogchi.New(logger))
+	r.Use(telemetry.Middleware())
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 

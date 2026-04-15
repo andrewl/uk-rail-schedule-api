@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"uk-rail-schedule-api/internal/config"
 	"uk-rail-schedule-api/internal/db"
 	internalsync "uk-rail-schedule-api/internal/sync"
+	"uk-rail-schedule-api/internal/telemetry"
 
 	"github.com/joho/godotenv"
 )
@@ -24,11 +26,21 @@ func main() {
 	logger := setupLogger()
 	slog.SetDefault(logger)
 
+	ctx := context.Background()
+	shutdownTelemetry := telemetry.Setup(ctx, "uk-rail-schedule-api-syncd", version)
+	defer func() {
+		if err := shutdownTelemetry(ctx); err != nil {
+			slog.Error("Failed to shut down telemetry", "error", err)
+		}
+	}()
+
 	database, err := db.Open(config.GetDatabaseFilename())
 	if err != nil {
 		slog.Error("Failed to open database", "error", err)
 		os.Exit(1)
 	}
+
+	telemetry.RegisterSyncdObservables(database, config.GetDatabaseFilename())
 
 	slog.Info("Starting schedule sync daemon", "version", version)
 

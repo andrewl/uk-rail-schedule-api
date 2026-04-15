@@ -1,6 +1,6 @@
 # --- Build stage ---
 # Debian-based builder is required for mattn/go-sqlite3 (CGO + glibc)
-FROM golang:1.23 AS builder
+FROM golang:1.25 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libc-dev && rm -rf /var/lib/apt/lists/*
 

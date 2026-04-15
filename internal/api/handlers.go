@@ -6,6 +6,7 @@ import (
 	"time"
 	"uk-rail-schedule-api/internal/schedule"
 	"uk-rail-schedule-api/internal/store"
+	"uk-rail-schedule-api/internal/telemetry"
 	internalsync "uk-rail-schedule-api/internal/sync"
 
 	"github.com/go-chi/render"
@@ -62,6 +63,7 @@ func (h *Handler) SchedulesCtx(next http.Handler) http.Handler {
 
 		schedules, err := h.Store.GetSchedules(headcode, date, toc, tiploc, r.URL.Query().Get("hide_passed") == "true")
 		if err != nil {
+			telemetry.RecordError(r.Context(), "db")
 			http.Error(w, err.Error(), 500)
 			return
 		}
@@ -102,6 +104,7 @@ func (h *Handler) StatusCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status, err := h.Store.GetStatus()
 		if err != nil {
+			telemetry.RecordError(r.Context(), "db")
 			http.Error(w, err.Error(), 500)
 			return
 		}
