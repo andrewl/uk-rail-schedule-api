@@ -25,7 +25,7 @@ jobs:
       run: echo "VERSION=main-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
     - name: Build
-      run: make build VERSION=${{ env.VERSION }}
+      run: CGO_ENABLED=0 make build VERSION=${{ env.VERSION }}
 
     - name: Test
       run: make test
