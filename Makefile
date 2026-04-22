@@ -11,8 +11,8 @@ ifneq (,$(wildcard .env))
 endif
 
 build:
-	go build -ldflags="$(LDFLAGS)" -o $(SYNCD_BIN) ./cmd/syncd
-	go build -ldflags="$(LDFLAGS)" -o $(WEB_BIN)   ./cmd/web
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(SYNCD_BIN) ./cmd/syncd
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(WEB_BIN)   ./cmd/web
 
 test:
 	go test ./...

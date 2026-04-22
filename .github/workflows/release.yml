@@ -42,3 +42,5 @@ jobs:
           binary_name: ${{ matrix.binary }}
           extra_files: config.yaml.example README.md
           ldflags: -X 'main.version=${{ env.APP_VERSION }}'
+          build_flags: -a
+          env: CGO_ENABLED=0
